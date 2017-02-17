@@ -1,7 +1,6 @@
 #Scrape climate data?
  
-library(ggplot2)
-library(plyr)
+library(tidyverse)
 library(rgeos)# For gCentroid
 library(rnoaa)
 library(sp) #For proj4string
@@ -25,9 +24,10 @@ fire.list[fire.list$CONT_DATE==0,"CONT_DATE"] <-
 fire.list[which(as.numeric(str_sub(fire.list$CONT_DATE,-2))>30),"CONT_DATE"]=
   fire.list[which(as.numeric(str_sub(fire.list$CONT_DATE,-2))>30),"CONT_DATE"] + 70 #
 
-####Loop through all fires:
-#Bad cases lacking weather data: f=23, 26, 28, 34, 39, 41
-for(f in 187:nrow(fire.list)){
+####2. Loop through all fires:
+#Bad cases involving projection/spTransform/shapefile doesn't exist: 348, 355, 476, 477, 478, 479
+#Checkme: Breaks down starting around f=476. Not sure why.
+for(f in 479:nrow(fire.list)){
 #Get centroids of polygons
 fires.to.sample=as.character(fire.list$VB_ID)
 hs_fire=hs_patches[hs_patches$VB_ID==fires.to.sample[f],]
@@ -71,10 +71,12 @@ out <- ncdc(datasetid='GHCND', stationid=paste('GHCND',T_Station$id,sep=':'),
             limit = 300,
             token ="FTEIRBcwLUCArmZqFHwVomZhjQDOCqMv")
 
+if(!is.na(out$data)){
 if(nrow(out$data)>0){
 fire.list[f,"TMAX"]=max(out$data[out$data$datatype=="TMAX","value"])/10 #Convert to degrees C
 fire.list[f,"MAXTMIN"]=max(out$data[out$data$datatype=="TMIN","value"])/10 #Convert to degrees C
 fire.list[f,"T_dist"]=round(T_Station$distance,1) #In KM
+}
 }
 
 #Find the nearest station with wind data and get that data:
@@ -105,3 +107,5 @@ ed=gsub('^(.{7})(.*)$', '\\1-\\2', ed) #Insert dash
 gc()
 print(f)
 }
+
+#write_csv(fire.list,'./Data/Derived/fire_list.csv')
