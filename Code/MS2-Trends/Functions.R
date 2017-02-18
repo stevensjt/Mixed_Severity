@@ -29,64 +29,19 @@ decay=function(hs_fire,buf_max,buf_inc,name,cancel=F){
   return(dist.table.sub)
 }
 
-##Calculate decay coefficient q
+##Calculate decay coefficient sdc
+
 #Version 1
-calculate.q=function(decay.table){
+calculate.sdc=function(decay.table){
   #https://stat.ethz.ch/R-manual/R-devel/library/base/html/by.html
   m.list=with(decay.table,
                by(decay.table,name,
                   function(x)
-                    nls(prop.hs~10^(q*width),data=x,start=list(q=-0.01))
+                    nls(prop.hs~1/(10^(sdc*width)),data=x,start=list(sdc=0.01))
                   )
                )
-  q.table=data.frame(name=unique(as.character(decay.table$name)),q=sapply(m.list,coef))
-  out.table=merge(decay.table,q.table,sort=F)
-  out.table$q.name=as.character(format(round(out.table$q,4),scientific=F))
-  return(out.table)
-}
-
-#Version 2
-calculate.R=function(decay.table){
-  #https://stat.ethz.ch/R-manual/R-devel/library/base/html/by.html
-  m.list=with(decay.table,
-              by(decay.table,name,
-                 function(x)
-                   nls(prop.hs~(1-width/R)^2,data=x,start=list(R=1))
-                    #~(1-width/R)^2 as a single term model
-              )
-  )
-  R.table=data.frame(name=unique(as.character(decay.table$name)),R=sapply(m.list,coef))
-  out.table=merge(decay.table,R.table,sort=F)
-  out.table$R.name=as.character(format(round(out.table$R,1),scientific=F))#Could deprecate
-  return(out.table)
-}
-
-#Version 3
-calculate.AB=function(decay.table){
-  #https://stat.ethz.ch/R-manual/R-devel/library/base/html/by.html
-  m.list=with(decay.table,
-              by(decay.table,name,
-                 function(x)
-                   nls(prop.hs~(1-A*width+B*width^2),data=x,start=list(A=1,B=1))
-                    #~(1-A*width+B*width^2) as a two term model #START HERE, would need to adjust the R.table code below to AB.table
-              )
-  )
-  AB.table=data.frame(name=unique(as.character(decay.table$name)),A=sapply(m.list,coef)[1,],B=sapply(m.list,coef)[2,])
-  out.table=merge(decay.table,AB.table,sort=F)
-  return(out.table)
-}
-
-#Version 1
-calculate.q2=function(decay.table){
-  #https://stat.ethz.ch/R-manual/R-devel/library/base/html/by.html
-  m.list=with(decay.table,
-               by(decay.table,name,
-                  function(x)
-                    nls(prop.hs~1/(10^(q*width)),data=x,start=list(q=0.01))
-                  )
-               )
-  q.table=data.frame(name=unique(as.character(decay.table$name)),q=sapply(m.list,coef))
-  out.table=merge(decay.table,q.table,sort=F)
-  out.table$q.name=as.character(format(round(out.table$q,4),scientific=F))
+  sdc.table=data.frame(name=unique(as.character(decay.table$name)),sdc=sapply(m.list,coef))
+  out.table=merge(decay.table,sdc.table,sort=F)
+  out.table$sdc.name=as.character(format(round(out.table$sdc,4),scientific=F))
   return(out.table)
 }

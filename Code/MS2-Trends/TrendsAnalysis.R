@@ -1,15 +1,71 @@
-library(ggplot2)
-library(plyr)
+library(tidyverse)
 library(zoo) #For moving window
+library(rgdal)
+library(dismo)
+library(ggrepel)
+require(rgeos)
+library(gridExtra)
+source("./Code/MS1-Concepts/Functions.R")
 
-####1. Process data and calculate q####
+####1. Process data and calculate SDC####
 
-####2. Read in data####
-#Read in processed data
-fire.list=read.csv("./Analyses/Processed Data/all_fires_ForAnalysis.csv")
-hs_patches=readRDS("./hs_patches.RDS")
+#1a. Load and Filter Data####
+#fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/GIS/BurnSev/", layer="VegBurnSeverity85-15") #Full layer
+#fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/GIS/BurnSev/", layer="VegBurnSeverity_Sierra_85-15")#Shapefile with all Sierra fires since 2000 (smaller data file for EDA)
+
+#hs_patches=fires[fires$BURNSEV==4&fires$BEST_ASSES=="YES",] #Extract only the high-severity patches, which shrinks down the files size
+#saveRDS(hs_patches,"./hs_patches.RDS")
+hs_patches=ReadRDS("./hs_patches.RDS")
+#rm(fires)#Clear space
+gc()#Clear space
+
+fire.list=fire.list[(as.character(fire.list$AGENCY)!="USF"&as.character(fire.list$VB_ID)!="2014KING")&as.character(fire.list$Veg)=="Forest",] 
+fires.to.sample=as.character(fire.list$VB_ID)
+
+#1b. Run Geospatial Analysis - Internal Buffering####
+Sys.time() #Takes ~12 hours depending on sample size. Should only need to do once.
+for(f in c(1:length(fires.to.sample))){
+  cancel=!fires.to.sample[f]%in%hs_patches$VB_ID#If the fire name in question does not have a corresponding shapefile, set cancel to T and bypass the analysis for that fire.
+  if(!cancel){#Proceed if you have a valid fire to work with (don't cancel)
+    hs_fire=hs_patches[hs_patches$VB_ID==fires.to.sample[f],]
+    #Remove holes
+    hs_fire=fill_holes(hs_fire=hs_fire)
+    #plot(hs_fire,col="darkred",border="transparent")
+    Sys.time()
+    decay.table=decay(hs_fire=hs_fire,buf_max=1000,buf_inc=10,name=fires.to.sample[f])
+    Sys.time()
+    if(f==1){all_fires=decay.table}else{
+      all_fires=rbind(all_fires,decay.table)
+    }
+  }
+  print(paste(fires.to.sample[f],Sys.time()))
+  gc()
+}
+#Save as "Long" dataset, which has the buffering done for each fire (rows=buffer widths).
+#write.csv(all_fires,file="./Analyses/Processed Data/NPS_CDF_Long.csv")
+
+#1c. Run Statistical Analysis - calculate metric####
+fires_for_stats=all_fires #If running on data you just did geospatial analyses
+
+#Analyze the fires_for_stats table to calculate the parameters of interest
+fires_with_stats=calculate.sdc(fires_for_stats) #Fast!
+
+#Save as "Full" dataset, which has the statistic calculated for each row (rows=buffer widths).
+#write.csv(fires_with_stats,file="./Analyses/Processed Data/all_fires_Full.csv")
+
+#Summarize to a single row per fire 
+summary_fires=ddply(fires_with_stats,.(name),summarize,sdc=mean(sdc))
+
+#Add the relevant parameters to the fire.list file, with a single row per fire ("ForAnalysis" dataset)
+fire.list$sdc=summary_fires$sdc
+#write.csv(fire.list,file="./Analyses/Processed Data/all_fires_ForAnalysis.csv")
 
 ####3. Exploratory analyses####
+#3aa. Read in data
+#Read in processed data
+fire.list= read.csv("./Data/Derived/fire_list.csv")
+hs_patches=readRDS("./hs_patches.RDS")
+
 #3a: Check for normality
 hist(fire.list$q)
 fire.list$logq=log(fire.list$q)
