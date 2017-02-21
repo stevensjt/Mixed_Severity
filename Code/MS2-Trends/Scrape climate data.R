@@ -118,7 +118,7 @@ gc()
 print(f)
 }#End for loop
 
-#write_csv(fire.list,'./Data/Derived/fire_list.csv')
+#write_csv(fire.list,'./Data/Derived/fire_list2.csv')
 
 ####3. Look into Abatzoglou gridded data####
 #fire.list= read.csv("./Data/Derived/fire_list.csv")
@@ -128,7 +128,7 @@ print(f)
 #Data source: https://www.reacchpna.org/thredds/reacch_climate_MET_catalog.html
 
 #Bad fires: 248 (Gondola; but works if you run independently), 
-for(f in 421:507){ #Fire for loop
+for(f in 1:507){ #Fire for loop
   #Get centroids of polygons
   fires.to.sample=as.character(fire.list$VB_ID)
   hs_fire=hs_patches[hs_patches$VB_ID==fires.to.sample[f],]
@@ -157,6 +157,8 @@ for(f in 421:507){ #Fire for loop
                     "&time_start=",sd,"T00%3A00%3A00Z",
                     "&time_end=",ed,"T00%3A00%3A00Z&timeStride=1&accept=netcdf")
       dest <-  paste0("./Data/climate_nc/",v,".nc" )
+      #fire.list[f,"lat"]=gCentroid(hs_fire_ll)$y
+      #fire.list[f,"long"]=gCentroid(hs_fire_ll)$x
       tmp=try(download.file(url=v_link,destfile=dest), silent=T)
       if(class(tmp)!="try-error"){ #CHECK download error: 
         #if the download produced an error, will have to do it manually so skip the next bit.

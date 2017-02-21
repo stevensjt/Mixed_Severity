@@ -1,4 +1,5 @@
 library(tidyverse)
+library(plyr)
 library(zoo) #For moving window
 library(rgdal)
 library(dismo)
@@ -9,22 +10,26 @@ source("./Code/MS1-Concepts/Functions.R")
 
 ####1. Process data and calculate SDC####
 
+#***WHERE IS WHITES FIRE? It's in HS_patches but not in fire.list; Might need to cross-check the current fire.list with fires_usfs and pull in any that are missing to get the SDC values#
+
+fire.list= read.csv("./Data/Derived/fire_list.csv")
 #1a. Load and Filter Data####
-#fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/GIS/BurnSev/", layer="VegBurnSeverity85-15") #Full layer
+#fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/Large Files/GIS/BurnSev/Current/", layer="VegBurnSeverity84-17") #Full layer. CRS EPSG:3310, NAD83 CA Albers
 #fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/GIS/BurnSev/", layer="VegBurnSeverity_Sierra_85-15")#Shapefile with all Sierra fires since 2000 (smaller data file for EDA)
 
 #hs_patches=fires[fires$BURNSEV==4&fires$BEST_ASSES=="YES",] #Extract only the high-severity patches, which shrinks down the files size
 #saveRDS(hs_patches,"./hs_patches.RDS")
-hs_patches=ReadRDS("./hs_patches.RDS")
+#hs_patches=ReadRDS("./hs_patches.RDS")
+hs_patches=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/Large Files/GIS/BurnSev/Current/", layer="hs_patches")
 #rm(fires)#Clear space
 gc()#Clear space
 
-fire.list=fire.list[(as.character(fire.list$AGENCY)!="USF"&as.character(fire.list$VB_ID)!="2014KING")&as.character(fire.list$Veg)=="Forest",] 
+#fire.list=fire.list[(as.character(fire.list$AGENCY)!="USF"&as.character(fire.list$VB_ID)!="2014KING")&as.character(fire.list$Veg)=="Forest",] 
 fires.to.sample=as.character(fire.list$VB_ID)
 
 #1b. Run Geospatial Analysis - Internal Buffering####
 Sys.time() #Takes ~12 hours depending on sample size. Should only need to do once.
-for(f in c(1:length(fires.to.sample))){
+for(f in c(1,100,200,300,400,which(is.na(fire.list$q)))){ #
   cancel=!fires.to.sample[f]%in%hs_patches$VB_ID#If the fire name in question does not have a corresponding shapefile, set cancel to T and bypass the analysis for that fire.
   if(!cancel){#Proceed if you have a valid fire to work with (don't cancel)
     hs_fire=hs_patches[hs_patches$VB_ID==fires.to.sample[f],]
@@ -42,7 +47,7 @@ for(f in c(1:length(fires.to.sample))){
   gc()
 }
 #Save as "Long" dataset, which has the buffering done for each fire (rows=buffer widths).
-#write.csv(all_fires,file="./Analyses/Processed Data/NPS_CDF_Long.csv")
+#write.csv(all_fires,file="./Data/Derived/Long_Form/2015_16_Long.csv")
 
 #1c. Run Statistical Analysis - calculate metric####
 fires_for_stats=all_fires #If running on data you just did geospatial analyses
@@ -55,16 +60,22 @@ fires_with_stats=calculate.sdc(fires_for_stats) #Fast!
 
 #Summarize to a single row per fire 
 summary_fires=ddply(fires_with_stats,.(name),summarize,sdc=mean(sdc))
+names(summary_fires)[1]="VB_ID"
+tmp=merge.data.frame(fire.list,summary_fires,by="VB_ID",all=T)
+tmp[which(is.na(tmp$sdc)),"sdc"]=tmp[which(is.na(tmp$sdc)),"q"]
 
-#Add the relevant parameters to the fire.list file, with a single row per fire ("ForAnalysis" dataset)
-fire.list$sdc=summary_fires$sdc
-#write.csv(fire.list,file="./Analyses/Processed Data/all_fires_ForAnalysis.csv")
+#Add the relevant parameters to the fire.list file, and save (optional)
+fire.list$sdc=tmp$sdc
+#write_csv(fire.list,path='./Data/Dervied/fire_list2.csv')
+#hs_patches2=hs_patches[which(hs_patches$VB_ID%in%fire.list$VB_ID),]
+#saveRDS(hs_patches2,"./Data/hs_patches.RDS")
 
 ####3. Exploratory analyses####
 #3aa. Read in data
 #Read in processed data
 fire.list= read.csv("./Data/Derived/fire_list.csv")
-hs_patches=readRDS("./hs_patches.RDS")
+
+hs_patches2=readRDS("./Data/hs_patches.RDS")
 
 #3a: Check for normality
 hist(fire.list$q)
