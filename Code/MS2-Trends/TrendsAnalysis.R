@@ -6,24 +6,27 @@ library(dismo)
 library(ggrepel)
 require(rgeos)
 library(gridExtra)
-source("./Code/MS1-Concepts/Functions.R")
+source("./Code/Functions.R")
 
 ####1. Process data and calculate SDC####
 
-#***WHERE IS WHITES FIRE? It's in HS_patches but not in fire.list; Might need to cross-check the current fire.list with fires_usfs and pull in any that are missing to get the SDC values#
-
-fire.list= read.csv("./Data/Derived/fire_list.csv")
 #1a. Load and Filter Data####
 #fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/Large Files/GIS/BurnSev/Current/", layer="VegBurnSeverity84-17") #Full layer. CRS EPSG:3310, NAD83 CA Albers
 #fires=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/GIS/BurnSev/", layer="VegBurnSeverity_Sierra_85-15")#Shapefile with all Sierra fires since 2000 (smaller data file for EDA)
 
+
+
 #hs_patches=fires[fires$BURNSEV==4&fires$BEST_ASSES=="YES",] #Extract only the high-severity patches, which shrinks down the files size
 #saveRDS(hs_patches,"./hs_patches.RDS")
 #hs_patches=ReadRDS("./hs_patches.RDS")
-hs_patches=readOGR("/Users/Jens/Documents/Davis/Post-Doc/Side Projects/Mixed Severity/Large Files/GIS/BurnSev/Current/", layer="hs_patches")
+hs_patches=readOGR("../Large Files/GIS/BurnSev/Current/", layer="hs_patches")
 #rm(fires)#Clear space
 gc()#Clear space
 
+#Get fires of interest
+#***WHERE IS WHITES FIRE? It's in HS_patches but not in fire.list when read from Data/Derived; Might need to cross-check the current fire.list with fires_usfs and pull in any that are missing to get the SDC values#
+
+fire.list= read.csv("./Data/Derived/fire_list.csv")
 #fire.list=fire.list[(as.character(fire.list$AGENCY)!="USF"&as.character(fire.list$VB_ID)!="2014KING")&as.character(fire.list$Veg)=="Forest",] 
 fires.to.sample=as.character(fire.list$VB_ID)
 
