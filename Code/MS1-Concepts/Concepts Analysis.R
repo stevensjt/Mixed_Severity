@@ -61,11 +61,11 @@ fire.list2=read.csv("./Data/Derived Data/all_fires_ForAnalysis.csv")
 fire.list2=fire.list #Deprecate and just use fire.list? Not sure why we need a fire.list2
 
 #6.1 Histograms
-h=ggplot(fire.list2,aes(log(AWMSI)))+
+h=ggplot(fire.list2,aes(log(sdc)))+
   geom_histogram(binwidth=0.1,fill="white",col="black")+
   geom_vline(xintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1.2)+
   #labs(x = expression(ln(c[d])))+
-  labs(x="AWMSI")+
+  labs(x="ln(SDC)")+
   theme_bw()
 h
 #dev.copy2pdf(file=paste0("./Figures/FigS1_",Sys.Date(),".pdf"),width=8,height=8)
@@ -88,20 +88,20 @@ pS3=ggplot(fire.list2[fire.list2$FIRESIZE_HA<1000,],aes(x=log(FIRESIZE_HA),y=log
 pS3
 #dev.copy2pdf(file=paste0("./Figures/FigS3_",Sys.Date(),".pdf"),width=8,height=6)
 
-pS4=ggplot(fire.list2,aes(x=log(FIRESIZE_HA),y=log(AWMSI)))+ #Optional: add ,col=BA90_PCT
+pS4=ggplot(fire.list2,aes(x=log(FIRESIZE_HA),y=log(sdc)))+ #Optional: add ,col=BA90_PCT
   geom_hline(yintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1)+
   geom_point()+
   geom_smooth(method="lm",col="gray")+
-  labs(x ="AWMSI fire size (ln[ha])\n", y= expression(ln(c[d])))+
+  labs(x ="fire size (ln[ha])\n", y= "ln(SDC)")+
   theme_bw()
 pS4
 #dev.copy2pdf(file=paste0("./Figures/FigS4_",Sys.Date(),".pdf"),width=8,height=6)
 
-pS5=ggplot(fire.list2,aes(x=BA90_PCT,y=log(AWMSI)))+ 
+pS5=ggplot(fire.list2,aes(x=BA90_PCT,y=log(sdc)))+ 
   geom_hline(yintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1)+
   geom_point()+
   geom_smooth(method="lm",col="gray")+
-  labs(x ="AWMSI percentage mapped \n as high-severity", y= expression(ln(c[d])))+
+  labs(x ="percentage mapped \n as high-severity", y= "ln(SDC)")+
   theme_bw()
 pS5
 #dev.copy2pdf(file=paste0("./Figures/FigS5_",Sys.Date(),".pdf"),width=8,height=6)
@@ -111,15 +111,16 @@ Fig5=
   grid.arrange(h,arrangeGrob(pS4,pS5,ncol=2),ncol=1,heights=c(2,2),clip=F)
 #dev.copy2pdf(file=paste0("./Figures/Fig5_",Sys.Date(),".pdf"),width=8,height=6)
 
+hist(log(fire.list2$AWMSI))
 pS6=ggplot(fire.list2,aes(x=log(AWMSI),y=log(sdc)))+ 
   #geom_hline(yintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1)+
   geom_point()+
   geom_smooth(method="lm",col="gray")+
-  labs(x ="AWMSI ", y= expression(ln(c[d])))+
+  labs(x ="ln(AWMSI) ", y= expression(ln(c[d])))+
   theme_bw()
-pS6
+pS6 #Use this one
 
-pS7=ggplot(fire.list2,aes(x=log(MSI),y=log(sdc)))+ 
+pS7=ggplot(fire.list2,aes(x=(MSI),y=log(sdc)))+ 
   #geom_hline(yintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1)+
   geom_point()+
   geom_smooth(method="lm",col="gray")+
@@ -127,6 +128,24 @@ pS7=ggplot(fire.list2,aes(x=log(MSI),y=log(sdc)))+
   theme_bw()
 pS7
 
+hist(fire.list2$AWMPFD)
+pS8=ggplot(fire.list2,aes(x=(AWMPFD),y=log(sdc)))+ 
+  #geom_hline(yintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1)+
+  geom_point()+
+  geom_smooth(method="lm",col="gray")+
+  labs(x ="AWMPFD ", y= expression(ln(c[d])))+
+  theme_bw()
+pS8 #Use this one
+
+pS9=ggplot(fire.list2,aes(x=(MPFD),y=log(sdc)))+ 
+  #geom_hline(yintercept=log(c(0.0219,0.0068,0.0020,0.0006)),col=c("#377eb8","#4daf4a","#984ea3","#e41a1c"),size=1)+
+  geom_point()+
+  geom_smooth(method="lm",col="gray")+
+  labs(x ="MPFD ", y= expression(ln(c[d])))+
+  theme_bw()
+pS9
+
+plot(AWMPFD~log(AWMSI), data=fire.list2)
 #Which fires exceed the threshold of the purple line?
 library(Kmisc)
 write.cb(fire.list2[which(fire.list2$q<0.002),c("FIRE_NAME","FIRE_YEAR")])

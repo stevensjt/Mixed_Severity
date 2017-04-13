@@ -84,13 +84,11 @@ fire.list <- merge(fire.list[,c(1:17)],summary_fires[,c("VB_ID","sdc")])
 #write.csv(fire.list,file="./Data/Derived/all_fires_ForAnalysis.csv")
 
 ####4. Calculate Fragstats####
-##4a. Get mean shape index (MSI) and area-weighted mean shape index (AWMSI). 
-#This is the average of the perimter:area ratio of all stand-replacing patches in a fire, weighted by patch area in the case of AWMSI. 
+##4a. Get mean shape index (MSI), area-weighted mean shape index (AWMSI), mean patch fractal dimension (MPFD) and area-weighted mean patch fractal dimension (AWMPFD) for all fires, or specific fires.
 
 fires.to.sample <- as.character(fire.list$VB_ID) #Sample all fires
 #fires.to.sample <- c("1987EAST","2008CARIBOU") #Sample specific fires
 
-#Get Mean Shape Index (MSI) and area-weighted Mean Shape Index (AWMSI); smaller values are simpler shapes.
 Sys.time() 
 for(f in c(1:length(fires.to.sample))){
   cancel=!fires.to.sample[f]%in%hs_patches$VB_ID#If the fire name in question does not have a corresponding shapefile, set cancel to T and bypass the analysis for that fire.
@@ -99,13 +97,17 @@ for(f in c(1:length(fires.to.sample))){
     #Remove holes
     hs_fire=fill_holes(hs_fire=hs_fire)
     Sys.time()
-    SI=get_MSI(hs_fire=hs_fire)
+    SI=get_fragstats(hs_fire=hs_fire)
     fire.list[fire.list$VB_ID==fires.to.sample[f],"MSI"] <- SI[1]
     fire.list[fire.list$VB_ID==fires.to.sample[f],"AWMSI"] <- SI[2]
+    fire.list[fire.list$VB_ID==fires.to.sample[f],"MPFD"] <- SI[3]
+    fire.list[fire.list$VB_ID==fires.to.sample[f],"AWMPFD"] <- SI[4]
     Sys.time()
   }
   print(paste(fires.to.sample[f],Sys.time()))
   gc()
 }
+Sys.time()
+#write.csv(fire.list,file="./Data/Derived/all_fires_ForAnalysis.csv")
 
-write.csv(fire.list,file="./Data/Derived/all_fires_ForAnalysis.csv")
+##4b. 

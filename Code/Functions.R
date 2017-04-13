@@ -44,9 +44,9 @@ calculate.sdc=function(decay.table){
   return(out.table)
 }
 
-##Calculate mean shape index (MSI) and area-weighted mean shape index (AWMSI). 
-#This is the average of the perimter:area ratio of all stand-replacing patches in a fire, weighted by patch area in the case of AWMSI. 
-get_MSI <- function (hs_fire){
+##Calculate fragstats: mean shape index (MSI), area-weighted mean shape index (AWMSI), mean patch fractal dimension (MPFD) and area-weighted mean patch fractal dimension (AWMPFD). 
+
+get_fragstats <- function (hs_fire){
   EAR=data.frame(poly=NA,perim=NA,area=NA)
   holes=which(sapply(hs_fire@polygons[[1]]@Polygons , slot , "hole"))
   for(p in 1:length(hs_fire@polygons[[1]]@Polygons)){
@@ -81,8 +81,12 @@ get_MSI <- function (hs_fire){
       #Subtract hole's area from parent's area
     }
   }
-  EAR$ear=EAR$perim/EAR$area
-  MSI <- mean(EAR$ear,na.rm=T)
-  AWMSI <- weighted.mean(EAR$ear,w = EAR$area,na.rm=T)
-  return(c(MSI,AWMSI))
+  EAR$ear <- EAR$perim/EAR$area #Edge:area ratio (= perimeter:area ration = Shape Index)
+  EAR$pfd <- 2*log(EAR$perim)/log(EAR$area) #Patch fractal dimension; equation from McGarigal and Marks 1995 p 36
+  MSI <- mean(EAR$ear,na.rm=T) #Mean Shape Index
+  AWMSI <- weighted.mean(EAR$ear,w = EAR$area,na.rm=T) #Area-weighted Mean Shape Index
+  MPFD <- mean(EAR$pfd,na.rm=T) #Mean Patch Fractal Dimension
+  AWMPFD <- weighted.mean(EAR$pfd,w = EAR$area,na.rm=T) #Area-weighted Mean Patch Fractal Dimension
+  return(c(MSI, AWMSI, MPFD, AWMPFD))
 }
+
