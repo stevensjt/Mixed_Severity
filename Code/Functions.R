@@ -1,4 +1,4 @@
-##Functions for recharacterizing fire regimes
+##This code contains functions for recharacterizing fire regimes##
 
 ##Fill holes that are less than 9 pixels large (9*900m2=8100m2, or 0.81 ha)
 fill_holes=function(hs_fire){
@@ -10,24 +10,46 @@ fill_holes=function(hs_fire){
   hs_fire_fill <- SpatialPolygons(lapply(1:length(res), function(i)
     Polygons(res[[i]], ID=IDs[i])), proj4string=CRS(proj4string(hs_fire)))
   return(hs_fire_fill)
-  ##One consequence of this is that it's no longer a sp data frame, and there are some warnings, and possibly buf is large too. 
+  ##One consequence of this is that it's no longer a sp data frame, and there are some warnings. 
 }
 
-##Decay profile
+##Decay profile: Implement internal buffering on high severity patches, create "Long" dataset
 decay=function(hs_fire,buf_max,buf_inc,name,cancel=F){
-  dist.table.sub=
+  require(parallel) #for "mclapply"
+  require(rgeos) #for gBuffer
+  require(raster) #for "area"
+  
+  #Set up long data frame:
+  dist.table.sub <-
     data.frame(name=rep(name,(buf_max/buf_inc)+1),width=seq(0,buf_max,by=buf_inc),area_ha=NA)
+  
   #Core operation:
-  buf.list=lapply(X=-dist.table.sub$width,FUN=gBuffer,spgeom=hs_fire, byid = FALSE, id = NULL, quadsegs = 5, capStyle = "ROUND", joinStyle = "ROUND", mitreLimit = 1) #Apply the buffer at every width in X; returns list of length X.
-  buf.list=Filter(length,buf.list) #Remove any NULL values (when buffer eliminated all HS areas)
-  dist.table.sub$area_ha=(as.vector(sapply(buf.list,area))*0.0001)[1:nrow(dist.table.sub)] #0.0001 converts m2 to ha
-  if(any(is.na(dist.table.sub$area_ha))){#If there are NULL values for the area because the buffer got too wide, remove them.
-    dist.table.sub$area_ha[which(is.na(dist.table.sub$area_ha))[1]]=0 #Set the first null value to 0
-    dist.table.sub=dist.table.sub[-which(is.na(dist.table.sub$area_ha)),] #Delete the rest of the table rows with NA in area.
+  buf.list <- #Apply the buffer at every width in X; returns list of length X.
+    mclapply(X=-dist.table.sub$width,
+             FUN=gBuffer,
+             spgeom=hs_fire, 
+             byid = FALSE, id = NULL, quadsegs = 5, capStyle = "ROUND", joinStyle = "ROUND", mitreLimit = 1,
+             mc.cores = 4) 
+  
+  #Post-processing of long data frame:
+  buf.list <- #Remove any NULL values (when buffer eliminated all HS areas)
+    Filter(length,buf.list) 
+  dist.table.sub$area_ha <- #Calculate area remaining at each buffer distance
+    (as.vector(sapply(buf.list,area))*0.0001)[1:nrow(dist.table.sub)] #0.0001 converts m2 to ha
+  if(any(is.na(dist.table.sub$area_ha))){
+    #If there are NULL values for the area because the buffer got too wide, remove them.
+    dist.table.sub$area_ha[which(is.na(dist.table.sub$area_ha))[1]] <- 0 #Set the first null value to 0
+    dist.table.sub <- #Delete the rest of the table rows with NA in area.
+      dist.table.sub[-which(is.na(dist.table.sub$area_ha)),] 
   }
-  dist.table.sub$prop.hs=dist.table.sub$area_ha/dist.table.sub$area_ha[1]
+  dist.table.sub$prop.hs <- #Calculate the proportion of the original HS area remaining at each buffer distance
+    dist.table.sub$area_ha/dist.table.sub$area_ha[1]
+  
+  #Return the long data frame for the fire in question
   return(dist.table.sub)
 }
+#
+
 
 ##Calculate stand-replacing decay coefficient (sdc)
 calculate.sdc=function(decay.table){
