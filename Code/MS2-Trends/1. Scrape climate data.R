@@ -1,25 +1,19 @@
 #Scrape climate data?
  
-library(tidyverse)
+library(rgdal) #readOGR, proj4string
+library(tidyverse) #for write_csv
 library(rgeos)# For gCentroid
-library(rnoaa)
-library(sp) #For proj4string
 library(stringr) #for str_sub
-library(raster)
-library(ncdf4)
-source(file="./Code/MS2-Trends/Functions.R")
+library(ncdf4) #for processing functions to handle .nc files
+source("./Code/Functions.R")
 
 ####1. Data management####
 #Read in  data
 fire.list=read.csv("./Data/Derived/all_fires_ForAnalysis.csv")
-fires_usfs=read.csv("./Data/Raw/fires_usfs.csv")
-hs_patches=readRDS("./Data/hs_patches.RDS") #CRS EPSG:3310, NAD83 CA Albers
-station_data <- ghcnd_stations() #Run once to get list of all the stations (takes a minute)
+hs_patches=readOGR("../Large Files/GIS/BurnSev/Current/", layer="hs_patches") #CRS EPSG:3310, NAD83 CA Albers
 
 #Additional data processing
-fire.list=merge.data.frame(fires_usfs,fire.list[,c("VB_ID","q")],by="VB_ID",all=T) #This is temporary, add q from fires I already calculated it for. Eventually recalculate everything from the new list.
-fire.list=fire.list[-unique(c(grep("0000",fire.list$IGNITION_DATE), 
-                              grep("0000",fire.list$CONT_DATE))),] #Remove fires where either the start or end date is unknown (can't get weather) (n=11).
+fire.list=fire.list[-unique(grep("0000",fire.list$IGNITION_DATE)),] #Remove fires where the start date is unknown (can't get weather) (n=11).
 #If the end date is unknown but the start date is known, make it 7 days after the start date.
 fire.list[fire.list$CONT_DATE==0,"CONT_DATE"] <- 
   fire.list[fire.list$CONT_DATE==0,"IGNITION_DATE"] + 7
@@ -32,105 +26,19 @@ fire.list[grep("0900",fire.list$CONT_DATE), "CONT_DATE"] = fire.list[grep("0900"
 
 #fire.list= read.csv("./Data/Derived/fire_list.csv")
 
-####2. Loop through all fires using NOAA data####
-#Bad cases involving projection/spTransform/shapefile doesn't exist: 348, 355
-for(f in 437:nrow(fire.list)){
-#Get centroids of polygons
-fires.to.sample=as.character(fire.list$VB_ID)
-hs_fire=hs_patches[hs_patches$VB_ID==fires.to.sample[f],]
-
-if(nrow(hs_fire@data)>0){ #CHECK Shapefile: If there is a shapefile in the database, proceed
-hs_fire_ll=spTransform(hs_fire,CRS("+proj=longlat +datum=WGS84")) #Reproject to LL to use as NOAA Arg
-#proj4string(hs_fire)
-
-#plot(hs_fire_ll,axes=T)
-#points(gCentroid(hs_fire_ll))
-
-#Possibilities for accessing noaa data:
-#ftp://cran.r-project.org/pub/R/web/packages/rnoaa/rnoaa.pdf
-#https://ropensci.org/tutorials/rnoaa_tutorial.html
-#https://www.ncdc.noaa.gov/cdo-web/token
-#Station acronyms: https://www1.ncdc.noaa.gov/pub/data/ghcn/daily/readme.txt
-
-#ncdc_datasets(token ="FTEIRBcwLUCArmZqFHwVomZhjQDOCqMv") #GHCND are daily summaries
-#ncdc_locs(datasetid='GHCND',token ="FTEIRBcwLUCArmZqFHwVomZhjQDOCqMv")
-
-#Get all station X variable combinations within 100 km of the fire centroid:
-stations <- meteo_distance(station_data, lat=gCentroid(hs_fire_ll)@coords[2], 
-                           lon=gCentroid(hs_fire_ll)@coords[1], radius = 100)
-stations <-stations[-which(is.na(stations$id)),] #Previous call returns a line of NA's; delete that line.
-#parms=c("TMAX","TMIN","WSF5","WSFM","EVAP") #Max Temp, Min Temp, Max 5-minute windspeed, Max 1-mile windspeed, Min RH apparently doesn't exist. EVAP= evaporation of water
-
-#Find the nearest station with temperature data and get that data. 
-T_Station=stations[stations$element=="TMAX" & 
-                     stations$first_year<fire.list[f,"FIRE_YEAR"] & 
-                     stations$last_year>=fire.list[f,"FIRE_YEAR"],] 
-T_Station=T_Station[which.min(T_Station$distance),]
-
-#Get dates
-sd=fire.list[f,"IGNITION_DATE"]
-sd=gsub('^(.{4})(.*)$', '\\1-\\2', sd) #Insert dash (crazy regex)
-sd=gsub('^(.{7})(.*)$', '\\1-\\2', sd) #Insert dash
-ed=paste(fire.list[f,"CONT_DATE"])
-ed=gsub('^(.{4})(.*)$', '\\1-\\2', ed) #Insert dash (crazy regex)
-ed=gsub('^(.{7})(.*)$', '\\1-\\2', ed) #Insert dash
-
-out <- ncdc(datasetid='GHCND', stationid=paste('GHCND',T_Station$id,sep=':'), 
-            datatypeid=c('TMAX','TMIN'), startdate = sd, enddate = ed, 
-            limit = 300,
-            token ="FTEIRBcwLUCArmZqFHwVomZhjQDOCqMv")
-
-
-if(nrow(out$data)>0){#CHECK temp data: If temp data exists, proceed
-fire.list[f,"TMAX"]=max(out$data[out$data$datatype=="TMAX","value"])/10 #Convert to degrees C
-fire.list[f,"MAXTMIN"]=max(out$data[out$data$datatype=="TMIN","value"])/10 #Convert to degrees C
-fire.list[f,"T_dist"]=round(T_Station$distance,1) #In KM
-}#End CHECK temp data
-
-
-#Find the nearest station with wind data and get that data:
-if(any(stations$element=="WSF5" & 
-       stations$first_year<fire.list[f,"FIRE_YEAR"] & 
-       stations$last_year>fire.list[f,"FIRE_YEAR"])){ #CHECK wind data: If wind data exists, proceed
-  
-W_Station=stations[stations$element=="WSF5" & 
-                     stations$first_year<fire.list[f,"FIRE_YEAR"] & 
-                     stations$last_year>fire.list[f,"FIRE_YEAR"],]
-W_Station=W_Station[which.min(W_Station$distance),]
-
-#Get dates
-sd=fire.list[f,"IGNITION_DATE"]
-sd=gsub('^(.{4})(.*)$', '\\1-\\2', sd) #Insert dash (crazy regex)
-sd=gsub('^(.{7})(.*)$', '\\1-\\2', sd) #Insert dash
-ed=paste(fire.list[f,"CONT_DATE"])
-ed=gsub('^(.{4})(.*)$', '\\1-\\2', ed) #Insert dash (crazy regex)
-ed=gsub('^(.{7})(.*)$', '\\1-\\2', ed) #Insert dash
-
-#out <- ncdc(datasetid='GHCND', stationid=paste('GHCND',W_Station$id,sep=':'), 
-#            datatypeid=c('WSF5'), startdate = sd, enddate = ed, 
-#            limit = 300,
-#            token ="FTEIRBcwLUCArmZqFHwVomZhjQDOCqMv")
-#fire.list[f,"MAX_WSF5"]=max(out$data[out$data$datatype=="WSF5","value"])/10 #Convert to m/s
-#fire.list[f,"W_dist"]=round(W_Station$distance,1) #In KM
-}#End CHECK wind data
-}#End CHECK Shapefile
-gc()
-print(f)
-}#End for loop
-
-#write_csv(fire.list,'./Data/Derived/fire_list2.csv')
-
-####3. Look into Abatzoglou gridded data####
-#fire.list= read.csv("./Data/Derived/fire_list.csv")
+####2. Look into Abatzoglou gridded data####
 #Sample data request page: https://www.reacchpna.org/thredds/ncss/grid/MET/tmmx/tmmx_2016.nc/dataset.html
 #Sample url: "https://www.reacchpna.org/thredds/ncss/MET/tmmx/tmmx_1984.nc?var=air_temperature&north=42.15&west=-124.43&east=-114.50&south=32.66&disableProjSubset=on&horizStride=1&time_start=1984-07-18T00%3A00%3A00Z&time_end=1984-07-25T00%3A00%3A00Z&timeStride=1&accept=netcdf"
 #To determine full variable, go to data source, select a year of variable of interest, and click "NetcdfSubset" to study example link like what is above.
 #Data source: https://www.reacchpna.org/thredds/reacch_climate_MET_catalog.html
 
-#Bad fires: 248 (Gondola; but works if you run independently), 
-for(f in 1:507){ #Fire for loop
+#fire.list <- read.csv('./Data/Derived/all_fires_ForAnalysis_weather.csv') #Optional, if revising or running for a subset.
+
+fires.to.sample=as.character(fire.list$VB_ID) #N=472
+#Bad fires: 251, 252 (Whiskey and Whit), 
+for(f in c(1:nrow(fire.list))){ #Fire for loop
   #Get centroids of polygons
-  fires.to.sample=as.character(fire.list$VB_ID)
+  
   hs_fire=hs_patches[hs_patches$VB_ID==fires.to.sample[f],]
   
   if(nrow(hs_fire@data)>0){ #CHECK Shapefile: If there is a shapefile in the database, proceed.
@@ -148,6 +56,11 @@ for(f in 1:507){ #Fire for loop
     for(index in 1:length(vs)){ #Variable for loop
       v=vs[index]
       v_full=vs_full[index]
+      
+      #Key function: Create a string with the url for data download
+      #This string includes the specific area (lat/long) and time window of interest. 
+      #The area is specified by a bounding box with a 0.2 degree buffer around the fire centroid.
+      #The resolution of the data is 0.04 degrees per pixel-width.
       v_link=paste0("https://www.reacchpna.org/thredds/ncss/MET/",v,
                     "/",v,"_",fire.list[f,"FIRE_YEAR"],".nc?var=",v_full,
                     "&north=",gCentroid(hs_fire_ll)$y+0.2,
@@ -156,6 +69,7 @@ for(f in 1:507){ #Fire for loop
                     "&south=",gCentroid(hs_fire_ll)$y-0.2,"&disableProjSubset=on&horizStride=1",
                     "&time_start=",sd,"T00%3A00%3A00Z",
                     "&time_end=",ed,"T00%3A00%3A00Z&timeStride=1&accept=netcdf")
+      
       dest <-  paste0("./Data/climate_nc/",v,".nc" )
       #fire.list[f,"lat"]=gCentroid(hs_fire_ll)$y
       #fire.list[f,"long"]=gCentroid(hs_fire_ll)$x
@@ -203,5 +117,4 @@ for(f in 1:507){ #Fire for loop
 
 fire.list[which(fire.list$max_bi<0),"max_bi"]=NA #Deer fire is wierd; very small and has negative BI
 
-#write_csv(fire.list,'./Data/Derived/fire_list.csv')
-
+write_csv(fire.list,'./Data/Derived/all_fires_ForAnalysis_weather.csv')

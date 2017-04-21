@@ -1,17 +1,14 @@
 ##Code for Concepts paper
 ####0. load libraries####
-#library(rgdal)
-#library(dismo)
-#library(ggrepel)
-#require(rgeos)
+library(rgdal) #readOGR
 library(cowplot)
-library(gridExtra)
 library(tidyverse)
 source("./Code/Functions.R")
 
 ####1a. Load data for analysis####
 fire.list <- read_csv("./Data/Derived/all_fires_ForAnalysis.csv")
 fires_long <- read_csv("./Data/Derived/Long_Form/all_fires_Long.csv")
+hs_patches=readOGR("../Large Files/GIS/BurnSev/Current/", layer="hs_patches")
 
 ####2.Plot Specific fires####
 #Gives a nice comparison of the East and Caribou fires.
@@ -21,7 +18,7 @@ fires.to.plot=fires_long[as.character(fires_long$name)%in%fires.to.plot.names,]
 fires.to.plot$name=factor(fires.to.plot$name,labels=c("East","Caribou"))
 p.a=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[1],]),
-            aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
+               aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,13110) + ylim(0,11280)+ coord_fixed()+
   labs(title="East Fire (1987)",x=" ",y="meters") +
   theme_bw()+
@@ -31,7 +28,7 @@ p.a=ggplot()+
 
 p.b=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[2],]),
-            aes(x=long-min(long),y=lat-min(lat),group=group),fill='darkblue')+
+               aes(x=long-min(long),y=lat-min(lat),group=group),fill='darkblue')+
   xlim(0,13110) + ylim(0,11280) + coord_fixed()+
   labs(title="Caribou Fire (2008)",x=" ", y=element_blank()) +
   theme_bw()+
