@@ -111,4 +111,3 @@ get_fragstats <- function (hs_fire){
   AWMPFD <- weighted.mean(EAR$pfd,w = EAR$area,na.rm=T) #Area-weighted Mean Patch Fractal Dimension
   return(c(MSI, AWMSI, MPFD, AWMPFD))
 }
-
