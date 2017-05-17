@@ -81,7 +81,7 @@ ft
 ####3b: Regression tree with best model from above####
 library(rpart)
 library(rpart.plot)
-#START HERE the formula below is a good one; can probably justify a candidate model above without tmmn. I think the weird tmmx<39 result can be explained by the fact that most fires were in the northwest in 1987 when it was probably very hot but also complex topography can give more complex stand-replacing fire dynamics.
+#START HERE the formula below is a good one; can probably justify a candidate model above without tmmn. I think the weird tmmx<39 result can be explained by the fact that most fires were in the northwest in 1987 when it was probably very hot but also complex topography can give more complex stand-replacing fire dynamics. Need to add a dummy variable for the Northwest vs Sierra.
 #http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
 tree.1 <- rpart(formula = formula(m2c@objects[[2]]), data=d)
 
