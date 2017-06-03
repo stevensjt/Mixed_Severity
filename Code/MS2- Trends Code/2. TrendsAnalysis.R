@@ -24,6 +24,7 @@ names(d) <- c("VB_ID","ID_Num","fire_name","fire_year","class","veg_type","agenc
 
 d[d$agency%in%c("BIA","CCO","USF,NPS"), "agency"]= NA #Get rid of a few underrepresented agencies/hybrids
 d$agency=factor(d$agency)
+d$region <- ifelse(d$ICS_code%in%c("KNF","MEU","MNF","SHF","SHU","SRF"),"NW","SCSN") #Identify fires in NW CA.
 d$class <- factor(d$class,levels=c("no","yes"), labels =c("SUP","WFU"))
 d[which(d$min_rmax==100),c(19:22)]=NA #Two funky fires that had 100 percent humidity and very low temps; suspect potential bias in extraction of meteorological data so excluding met data.
 to_scale <-c("fire_year","max_tmmx","max_tmmn","min_rmax","max_bi")
@@ -37,8 +38,30 @@ d[,paste(to_scale,"std",sep="_")]=scale(d[,to_scale])
 hist(d$sdc)
 hist(log(d$sdc))
 
+#2b: Summary table (Table 2)
+Table2 <- 
+  d %>%
+  group_by(agency,class) %>%
+  summarize(N = length(sdc), min_ha = min(firesize_ha), median_ha = median(firesize_ha), 
+            max_ha = max(firesize_ha,na.rm=T), median_fireyear = median(fire_year,na.rm=T), 
+            mean_max_tmmx = mean(max_tmmx,na.rm=T), mean_max_bi = mean(max_bi,na.rm=T), 
+            mean_max_tmmn = mean(max_tmmn,na.rm=T), mean_min_rmax = mean(min_rmax,na.rm=T)
+  )
 
-
+Table2[,c(8:11)] <- round(Table2[,c(8:11)],1)
+Table2[,"agency"] <- as.character(Table2[,"agency"][[1]])
+names(Table2) <- c("agency","class","N","min size \n(ha)","median \nsize (ha)","max size \n(ha)","median \nfire year",
+                   "mean maximum \nhigh temperature","mean maximum\nburn index","mean maximum \nlow temperature", 
+                   "mean minimum \nhigh humidity")
+Table2[is.na(Table2$agency),"agency"] <- "NA"
+# Set up general table properties and formatting
+cell_p = cellProperties(padding.right=3, padding.left=3)
+par_p = parProperties(text.align="right")
+# Make Table
+ft = FlexTable(Table2, header.columns=FALSE, body.cell.props=cell_p, body.par.props=par_p)
+ft = addHeaderRow(ft, text.properties=textBold(), names(Table2),
+                   par.properties=parCenter())
+ft #Save as HTML Table 2
 
 ####3a: SDC model selection####
 #tmax and tmin are correlated, so just using tmax
@@ -56,8 +79,10 @@ m2c <- glmulti(y="log(sdc)",
         xr=potential_parms,
         data=d,level=1,method="h") #If running interactions (level 2), try genetic algorithm (method = "g")
 
+summary(m2c@objects[[2]])
+
 #Make table
-m_max <- 5
+m_max <- 10
 x=matrix(NA,nrow=length(c("AIC",rev(rownames(coef(m2c) ) ) ) ),ncol=m_max+1)
 x[,1] <-c("AIC",rev(rownames(coef(m2c))))
 
@@ -81,7 +106,7 @@ ft
 ####3b: Regression tree with best model from above####
 library(rpart)
 library(rpart.plot)
-#START HERE the formula below is a good one; can probably justify a candidate model above without tmmn. I think the weird tmmx<39 result can be explained by the fact that most fires were in the northwest in 1987 when it was probably very hot but also complex topography can give more complex stand-replacing fire dynamics. Need to add a dummy variable for the Northwest vs Sierra.
+#The formula below is a good one; a simple model within one AIC point of the best model. I think the weird tmmx<39 result can be explained by the fact that most fires were in the northwest in 1987 when it was probably very hot but also complex topography can give more complex stand-replacing fire dynamics. Tried adding a dummy variable for "region" but it wasn't appreciably better than this model.
 #http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
 tree.1 <- rpart(formula = formula(m2c@objects[[2]]), data=d)
 
@@ -89,8 +114,11 @@ tree.1 <- rpart(formula = formula(m2c@objects[[2]]), data=d)
 prp(tree.1)					# Will plot the tree
 #dev.off()
 
-
-
+#Investigate the wierd tmmx < 39 result
+d_tmp <- d[d$class=="SUP" & d$max_tmmx >= 24 & d$fire_year<2010 & d$max_tmmx >= 39 & !is.na(d$fire_name),]
+d_tmp <- d_tmp[!is.na(d_tmp$fire_name),]
+d_tmp2 <- d[d$class=="SUP" & d$max_tmmx >= 24 & d$fire_year<2010 & d$max_tmmx < 39,]
+d_tmp2 <- d_tmp2[!is.na(d_tmp2$fire_name),]
 
 ####4. Trends over time####
 ####4a: Moving-window estimates (averaged per year)####
@@ -193,26 +221,26 @@ agency_pct <-
   geom_point()+
   scale_color_manual(values=c("darkred","darkgreen","orange"))+
   geom_smooth(method="lm")+
-  labs(title="All Fires")+
+  labs(title="All Fires", y= "ln(sdc)")+
   theme_bw()
 agency_ha <-
   ggplot(na.omit(d[,c("firesize_ha","sdc","agency")]),aes(x=log(firesize_ha),y=log(sdc),col=agency))+
   geom_point()+
   scale_color_manual(values=c("darkred","darkgreen","orange"))+
   geom_smooth(method="lm")+
-  labs(title="All Fires")+
+  labs(title="All Fires", y= "ln(sdc)")+
   theme_bw()
 class_pct <-
   ggplot(na.omit(d[,c("BA90_pct","sdc","class")]),aes(x=BA90_pct,y=log(sdc),col=class))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(title="All Fires")+
+  labs(title="All Fires", y= "ln(sdc)")+
   theme_bw()
 class_ha <-
   ggplot(na.omit(d[,c("firesize_ha","sdc","class")]),aes(x=log(firesize_ha),y=log(sdc),col=class))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(title="All Fires")+
+  labs(title="All Fires", y= "ln(sdc)")+
   theme_bw()
 
 summary(lm(log(sdc)~BA90_pct+class,data=d))
