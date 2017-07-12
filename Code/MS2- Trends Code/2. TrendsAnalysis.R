@@ -11,6 +11,7 @@ library(gridExtra)
 library(glmulti)
 library(tree)
 library(ReporteRs)
+library(car) #For durbinWatsonTest
 source("./Code/Functions.R")
 
 ####1. Read in and filter data for analysis####
@@ -22,16 +23,15 @@ names(d) <- c("VB_ID","ID_Num","fire_name","fire_year","class","veg_type","agenc
               "sdc","awmsi","awmpfd","max_tmmx","max_tmmn","min_rmax","max_bi") #spatial stats & weather
 
 
-d[d$agency%in%c("BIA","CCO","USF,NPS"), "agency"]= NA #Get rid of a few underrepresented agencies/hybrids
-d$agency=factor(d$agency)
+d$agency=as.character(d$agency)
+d[d$agency%in%c("BIA","CCO"), "agency"]= NA #Get rid of a few underrepresented agencies
+d[grep("USF",d$agency), "agency"]= "USFS" #Recode "USF" as "USFS" for consistency in text; this also classifies five fires with agency of "USF/NPS" as "USFS" because they had a National Forest as the ICS code.
+d$agency <- factor(d$agency)
 d$region <- ifelse(d$ICS_code%in%c("KNF","MEU","MNF","SHF","SHU","SRF"),"NW","SCSN") #Identify fires in NW CA.
+d$region <- factor(d$region,levels=c("SCSN","NW"))
 d$class <- factor(d$class,levels=c("no","yes"), labels =c("SUP","WFU"))
-d[which(d$min_rmax==100),c(19:22)]=NA #Two funky fires that had 100 percent humidity and very low temps; suspect potential bias in extraction of meteorological data so excluding met data.
-to_scale <-c("fire_year","max_tmmx","max_tmmn","min_rmax","max_bi")
-d[,paste(to_scale,"std",sep="_")]=scale(d[,to_scale])
-
-#CHECKME the 2010 fires had pretty high SDC values but are still included in the year split in the regression tree. Tweak them so this isn't the case
-#d[d$fire_year==2010 & d$class=="SUP","fire_year"]=2009
+d[which(d$min_rmax==100),c(19:22)]=NA #Two funky fires that had 100 percent humidity and very low temps; suspect potential bias in extraction of meteorological data so excluding met data for these fires.
+write_csv(d,"./Data/Derived/data_for_SDC_paper.csv")
 
 ####2. Exploratory analyses####
 #2a: Check for normality
@@ -43,7 +43,7 @@ Table2 <-
   d %>%
   group_by(agency,class) %>%
   summarize(N = length(sdc), min_ha = min(firesize_ha), median_ha = median(firesize_ha), 
-            max_ha = max(firesize_ha,na.rm=T), median_fireyear = median(fire_year,na.rm=T), 
+            max_ha = max(firesize_ha,na.rm=T), median_fireyear = round(median(fire_year,na.rm=T),0), 
             mean_max_tmmx = mean(max_tmmx,na.rm=T), mean_max_bi = mean(max_bi,na.rm=T), 
             mean_max_tmmn = mean(max_tmmn,na.rm=T), mean_min_rmax = mean(min_rmax,na.rm=T)
   )
@@ -71,26 +71,25 @@ ft #Save as HTML Table 2
 #Equivocal model replaces FIRE_YEAR with burn index (they are correlated) (890.86)
 #Big jumps happen from 26:27 (can't really explain; adding FIRE_YEAR to an equation that had all the weather variables except tmax) and 30:31 (can't really explain; adding tmmn and rmax to equation that just had FIRE_YEAR plus WFU and AGENCY). Generally it's a pretty gradual shift.
 
-potential_parms=c("fire_year","class","agency","max_tmmx","max_tmmn","min_rmax","max_bi")
-potential_parms_std=c("fire_year_std","class","agency","max_tmmx_std","max_tmmn_std","min_rmax_std","max_bi_std")
-#m2c <- glmulti(y=log(sdc)~ 0 + fire_year + class + agency + max_tmmx + max_tmmn + min_rmax + max_bi, 
-#               data=d,level=1)
+potential_parms=c("fire_year","class","agency","region","max_tmmx","max_tmmn","min_rmax","max_bi")
 m2c <- glmulti(y="log(sdc)", 
         xr=potential_parms,
         data=d,level=1,method="h") #If running interactions (level 2), try genetic algorithm (method = "g")
 
 summary(m2c@objects[[2]])
 
-#Make table
-m_max <- 10
+#Make table 1: Model summary
+m_max <- 5
 x=matrix(NA,nrow=length(c("AIC",rev(rownames(coef(m2c) ) ) ) ),ncol=m_max+1)
-x[,1] <-c("AIC",rev(rownames(coef(m2c))))
+x[,1] <-c("AIC",sort(rownames(coef(m2c))))
 
 for(m in c(1:m_max)){
-  c <- round(summary(m2c@objects[[m]])$coefficients[,1],3)
+  c <- round( summary(m2c@objects[[m]])$coefficients[,1]
+              [order(names(summary(m2c@objects[[m]])$coefficients[,1]))], 3)
   x[which(x[,1]%in%names(c)),m+1] <- c
-  x[1,m+1] <- round(AIC(m2c@objects[[m]]),2)
+  x[1,m+1] <- round(AIC(m2c@objects[[m]]),3)
 }
+x=x[c(1,2,3,4,5,6,9,8,11,7,10),] #Order weather variables by their inclusion in the model
 # Set up general table properties and formatting
 cell_p = cellProperties(padding.right=3, padding.left=3)
 par_p = parProperties(text.align="right")
@@ -100,31 +99,46 @@ ft = addHeaderRow(ft, text.properties=textBold(), c("","Model #"),
                   colspan=c(1,m_max), par.properties=parCenter())
 ft = addHeaderRow(ft, text.properties=textBold(), c("Model AIC \n /coefficients",c(1:m_max)),
                   colspan=rep(1,times=m_max+1), par.properties=parCenter())
-ft
+ft #Save as HTML Table 1
 
 
 ####3b: Regression tree with best model from above####
 library(rpart)
 library(rpart.plot)
-#The formula below is a good one; a simple model within one AIC point of the best model. I think the weird tmmx<39 result can be explained by the fact that most fires were in the northwest in 1987 when it was probably very hot but also complex topography can give more complex stand-replacing fire dynamics. Tried adding a dummy variable for "region" but it wasn't appreciably better than this model.
+#The formula below is a good one; a simple model within one AIC point of the best model. I think  Tried adding a dummy variable for "region" but it wasn't appreciably better than this model.
 #http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
-tree.1 <- rpart(formula = formula(m2c@objects[[2]]), data=d)
+#Recode variables for regression tree
+rtree.d <- d
+names(rtree.d)[19] <- "max_high_temp"
+levels(rtree.d$class) <- c("suppression","wildland fire use")
+#formula(m2c@objects[[2]]) #Get formula and modify max_high_temp as below
+tree.1 <- rpart(formula = "log(sdc) ~ 1 + class + agency + fire_year + max_high_temp", data=rtree.d)
 
-#png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig2_",Sys.Date(),".png"),width=4,height=4,units="in",res=200)
-prp(tree.1)					# Will plot the tree
+split.labs <- function(x, labs, digits, varlen, faclen) {
+  sapply(labs, function(lab) 
+    if (grepl("fire_year", lab)) {
+      rhs <- sub(".* ", "", lab);
+      lab <- sub(rhs, ceiling(as.numeric(rhs))+1, lab) #+1 here is the modification
+    } else lab)
+} #Note: The default printing takes the fire_year split at 2010.5 (see print(tree.1)) and incorrectly rounds it to >=2010 instead of >=2011. The "+1" modification above is the only way I could figure out to make this round correctly.
+
+#png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig1_",Sys.Date(),".png"),width=3.5,height=4,units="in",res=200)
+prp(tree.1, varlen = 0, faclen = 0, yesno.yshift=-1, split.fun = split.labs) # Plot the tree
+#varlen: no limit to variable name length
+#faclen: no limit to factor name length
+#yesno.yshift: move yes/no labels further down
 #dev.off()
 
-#Investigate the wierd tmmx < 39 result
-d_tmp <- d[d$class=="SUP" & d$max_tmmx >= 24 & d$fire_year<2010 & d$max_tmmx >= 39 & !is.na(d$fire_name),]
-d_tmp <- d_tmp[!is.na(d_tmp$fire_name),]
-d_tmp2 <- d[d$class=="SUP" & d$max_tmmx >= 24 & d$fire_year<2010 & d$max_tmmx < 39,]
-d_tmp2 <- d_tmp2[!is.na(d_tmp2$fire_name),]
+#Investigate the wierd max high temp > 39 result. It can be explained by the fact that all (18) of these fires were in the northwest, where complex topography can give more complex stand-replacing fire dynamics, and most (10) were in 1987 which was a warm year but where topography might have regulated stand-replacing effects.
+#d_tmp <- d[d$class=="SUP" & d$max_tmmx >= 24 & d$fire_year<2011 & d$max_tmmx >= 39 & !is.na(d$fire_name),]
+#d_tmp <- d_tmp[!is.na(d_tmp$fire_name),] 
 
 ####4. Trends over time####
-####4a: Moving-window estimates (averaged per year)####
+####4a: Moving-window estimates (averaged per year); deprecate this sub-section eventually####
+
 d.annual <-
   group_by(d,fire_year) %>%
-  summarise(sdc=mean(sdc), log_sdc=mean(log(sdc)), BA90_pct = mean(BA90_pct),
+  summarise(sdc=mean(sdc), log_sdc=mean(log(sdc)), BA90_pct = mean(BA90_pct), 
             max_bi=mean(max_bi,na.rm=T),max_tmmx=mean(max_tmmx,na.rm=T))
 log_sdc_mvw=rollapply(zoo(log(d.annual$sdc)), width = 5, by = 1, FUN = mean, align = "center")
 max_bi_mvw=rollapply(zoo(d.annual$max_bi), width = 5, by = 1, FUN = mean, align = "center")
@@ -139,66 +153,160 @@ sdc <-
   ggplot(d.annual,aes(x=fire_year,y=log_sdc))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(x="fire year", y= "ln(sdc)",title="average SDC")+
-  theme_bw()
+  labs(x=" ", y= "ln(sdc)",title="a       annual mean value")+
+  annotate("text", x=2015, y=-3.4, size = 4, label = paste("R^2 == ", 0.11), parse = TRUE,hjust=1)+
+  annotate("text", x=2015, y=-3.7, size = 4, label = paste("P = ", 0.058),hjust=1)+
+  theme_bw()+
+  theme(plot.title=element_text(size=14))
 sdc_mvw <- 
   ggplot(d.annual,aes(x=fire_year,y=log_sdc_mvw5))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(x="fire year", y= "ln(sdc)",title="5-year moving window average SDC")+
-  theme_bw()
+  labs(x=" ", y= "ln(sdc)",title="b       5-year mean value")+
+  xlim(ggplot_build(sdc)$layout$panel_scales$x[[1]]$range$range) + 
+  ylim(ggplot_build(sdc)$layout$panel_scales$y[[1]]$range$range) +
+  annotate("text", x=2015, y=-3.4, size = 4, label = paste("R^2 == ", 0.14), parse = TRUE,hjust=1)+
+  annotate("text", x=2015, y=-3.7, size = 4, label = paste("P = ", 0.047),hjust=1)+
+  theme_bw()+
+  theme(plot.title=element_text(size=14))
 bi <- 
   ggplot(d.annual,aes(x=fire_year,y=max_bi))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(x="fire year", y= "burn index",title="average burn index")+
+  labs(x=" ", y= "burn index", title = "c")+
+  annotate("text", x=2015, y=55, size = 4, label = paste("R^2 == ", 0.32), parse = TRUE,hjust=1)+
+  annotate("text", x=2015, y=52, size = 4, label = paste("P = ", 0.001),hjust=1)+
   theme_bw()
 bi_mvw <- 
   ggplot(d.annual,aes(x=fire_year,y=max_bi_mvw5))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(x="fire year", y= "burn index",title="5-year moving window average burn index")+
+  labs(x=" ", y= "burn index", title = "d")+
+  xlim(ggplot_build(bi)$layout$panel_scales$x[[1]]$range$range) + 
+  ylim(ggplot_build(bi)$layout$panel_scales$y[[1]]$range$range) +
+  annotate("text", x=2015, y=55, size = 4, label = paste("R^2 == ", 0.69), parse = TRUE,hjust=1)+
+  annotate("text", x=2015, y=52, size = 4, label = paste("P < ", 0.001),hjust=1)+
   theme_bw()
 tmmx <- 
   ggplot(d.annual,aes(x=fire_year,y=max_tmmx))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(x="fire year", y= "maximum temperature (C)",title="average maximum temperature (C)")+
+  labs(x="fire year", y= "maximum temperature (C)", title = "e")+
+  annotate("text", x=2015, y=25, size = 4, label = paste("R^2 == ", 0.10), parse = TRUE,hjust=1)+
+  annotate("text", x=2015, y=24, size = 4, label = paste("P = ", 0.077),hjust=1)+
   theme_bw()
 tmmx_mvw <- 
   ggplot(d.annual,aes(x=fire_year,y=max_tmmx_mvw5))+
   geom_point()+
   geom_smooth(method="lm")+
-  labs(x="fire year", y= "maximum temperature (C)",title="5-year moving window average maximum temperature (C)")+
+  #xlim(ggplot_build(tmmx)$layout$panel_ranges[[1]]$x.range) + 
+  xlim(ggplot_build(tmmx)$layout$panel_scales$x[[1]]$range$range)+
+  ylim(ggplot_build(tmmx)$layout$panel_scales$y[[1]]$range$range) +
+  annotate("text", x=2015, y=25, size = 4, label = paste("R^2 == ", 0.29), parse = TRUE,hjust=1)+
+  annotate("text", x=2015, y=24, size = 4, label = paste("P = ", 0.003),hjust=1)+
+  labs(x="fire year", y= "maximum temperature (C)", title = "f")+
   theme_bw()
 
 #png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig3_",Sys.Date(),".png"),width=6,height=9,units="in",res=200)
-grid.arrange(sdc,sdc_mvw,bi,bi_mvw,tmmx,tmmx_mvw,ncol=2)
+#grid.arrange(sdc,sdc_mvw,bi,bi_mvw,tmmx,tmmx_mvw,ncol=2)
 #dev.off()
 
 #Changes over time in log(sdc)
 #Significantly more negative in both the total data and the 5-year average
-summary(lm(log(sdc)~fire_year,data=d.annual))
-summary(lm(log_sdc_mvw5~fire_year,data=d.annual))
+m <- lm(log(sdc)~fire_year,data=d.annual)
+summary(m)
+durbinWatsonTest(m)
+m <- lm(log_sdc_mvw5~fire_year,data=d.annual)
+summary(m)
+durbinWatsonTest(m)
+
 
 #Changes over time in burn index
 #Significantly more positive
-summary(lm(max_bi~fire_year,data=d.annual))
-summary(lm(max_bi_mvw5~fire_year,data=d.annual))
+m <- lm(max_bi~fire_year,data=d.annual)
+summary(m)
+durbinWatsonTest(m)
+m <- lm(max_bi_mvw5~fire_year,data=d.annual)
+summary(m)
+durbinWatsonTest(m)
 
 #Changes over time in max temperature
 #No significant trend (significant if you consider the 5-year average)
-summary(lm(max_tmmx~fire_year,data=d.annual))
-summary(lm(max_tmmx_mvw5~fire_year,data=d.annual))
+m <- lm(max_tmmx~fire_year,data=d.annual)
+summary(m)
+durbinWatsonTest(m)
+m <- lm(max_tmmx_mvw5~fire_year,data=d.annual)
+summary(m)
+durbinWatsonTest(m)
 
-#Changes over time in percent high-severity
-#Significantly more positive, but not significant if you consider the 5-year average.
-#A stronger signal in SDC than in percent high severity
-summary(lm(BA90_pct~fire_year,data=d.annual))
-summary(lm(BA90_pct_mvw5~fire_year,data=d.annual))
+####4a.2 Subset by region####
+#START HERE. We're not going to re-create Jay's 2012 analysis at all. The weighting was an interesting idea but not going to pursue it. Just report the regional split for all fires, tell Jay that if we just look at USFS fires we don't see the same trend.
+#Maybe apply to suppression fires only (since that's the first split and where most of the action happens)
+d.annual.region <-
+  #group_by(d[d$agency=="USFS",],fire_year, region) %>% #Jay's original recommendatin; Nothing
+  #group_by(d[d$agency!="NPS",],fire_year, region) %>% #Nothing
+  #group_by(d[d$class=="SUP"&d$agency=="USFS",],fire_year, region) %>% #Moving window for SCSN marg. sig., positive trend over time
+  #group_by(d[d$class=="SUP"&d$agency!="NPS",],fire_year, region) %>% #Nothing
+  #group_by(d[d$agency=="USFS"&d$fire_year<2007,],fire_year, region) %>% #Trying to approximate Miller et al 2009; can't do it CHECKME 
+  #group_by(d[d$agency=="USFS"&d$fire_year<2011&d$region=="SCSN",],fire_year, region) %>% #Trying to approximate Miller et al 2012; can't do it CHECKME
+  group_by(d,fire_year, region) %>% #Go with this one in an appendix, SDC only. START HERE
+  summarise(sdc=mean(sdc), log_sdc=mean(log(sdc)),  BA90_pct = mean(BA90_pct), 
+            max_bi=mean(max_bi,na.rm=T),max_tmmx=mean(max_tmmx,na.rm=T)) #w = length(BA90_pct), deprecated.
+log_sdc_mvw=rollapply(zoo(log(d.annual.region$sdc)), width = 5, by = 1, FUN = mean, align = "center")
+max_bi_mvw=rollapply(zoo(d.annual.region$max_bi), width = 5, by = 1, FUN = mean, align = "center")
+max_tmmx_mvw=rollapply(zoo(d.annual.region$max_tmmx), width = 5, by = 1, FUN = mean, align = "center")
+BA90_pct_mvw=rollapply(zoo(d.annual.region$BA90_pct), width = 5, by = 1, FUN = mean, align = "center")
+d.annual.region[rownames(as.data.frame(log_sdc_mvw)),"log_sdc_mvw5"]=log_sdc_mvw
+d.annual.region[rownames(as.data.frame(max_bi_mvw)),"max_bi_mvw5"]=max_bi_mvw
+d.annual.region[rownames(as.data.frame(max_tmmx_mvw)),"max_tmmx_mvw5"]=max_tmmx_mvw
+d.annual.region[rownames(as.data.frame(max_tmmx_mvw)),"BA90_pct_mvw5"]=BA90_pct_mvw
+#d.annual.region <- d.annual.region[-which(is.na(d.annual.region$fire_year)),] 
+
+sdc_region <- 
+  ggplot(d.annual.region,aes(x=fire_year,y=log_sdc,col=region))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  labs(x="fire year", y= "ln(sdc)",title="a     annual mean value")+
+#  annotate("text", x=2015, y=-3.4, size = 4, label = paste("R^2 == ", 0.14), parse = TRUE,hjust=1)+
+#  annotate("text", x=2015, y=-3.7, size = 4, label = paste("P = ", 0.047),hjust=1)+
+  theme_bw()+
+  theme(plot.title=element_text(size=14),legend.position = "none")
+sdc_mvw_region <- 
+  ggplot(d.annual.region,aes(x=fire_year,y=log_sdc_mvw5,col=region))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  labs(x="fire year", y= "ln(sdc)",title="b    5-year mean value")+
+  xlim(ggplot_build(sdc_region)$layout$panel_scales$x[[1]]$range$range) + 
+  ylim(ggplot_build(sdc_region)$layout$panel_scales$y[[1]]$range$range) +
+#  annotate("text", x=2015, y=-3.4, size = 4, label = paste("R^2 == ", 0.14), parse = TRUE,hjust=1)+
+#  annotate("text", x=2015, y=-3.7, size = 4, label = paste("P = ", 0.047),hjust=1)+
+  theme_bw()+
+  theme(plot.title=element_text(size=14))
+
+BA90_region <- 
+  ggplot(d.annual.region,aes(x=fire_year,y=BA90_pct,col=region))+
+  geom_point()+
+  geom_smooth(method="lm",aes(weight=w))+
+  labs(x="fire year", y= "percent high-severity",title="annual mean value")+
+  theme_bw()+
+  theme(plot.title=element_text(size=14, hjust=0.5))
+
+png(file = paste0("./Manuscripts/MS2- Trends/Figures/FigS2_",Sys.Date(),".png"),width=6,height=3,units="in",res=200)
+grid.arrange(sdc_region,sdc_mvw_region,ncol=2,widths=c(0.43,0.57))
+dev.off()
+
+summary(lm(log_sdc~fire_year,data=d.annual.region[d.annual.region$region=="NW",]))
+summary(lm(log_sdc_mvw5~fire_year,data=d.annual.region[d.annual.region$region=="NW",]))
+summary(lm(log_sdc~fire_year,data=d.annual.region[d.annual.region$region=="SCSN",]))
+summary(lm(log_sdc_mvw5~fire_year,data=d.annual.region[d.annual.region$region=="SCSN",]))
+
+summary(lm(BA90_pct~fire_year,data=d.annual.region[d.annual.region$region=="NW",]))
+summary(lm(BA90_pct_mvw5~fire_year,data=d.annual.region[d.annual.region$region=="NW",]))
+summary(lm(BA90_pct~fire_year,data=d.annual.region[d.annual.region$region=="SCSN",]))
+summary(lm(BA90_pct_mvw5~fire_year,data=d.annual.region[d.annual.region$region=="SCSN",]))
 
 
-#4b: percentile analysis CHECKME this part needs to be updated.
+####4b: percentile analysis CHECKME this part is deprecated####
 fire.list$BA90_PCT_BIN=data.frame(fire.list$BA90_PCT, bin=cut(fire.list$BA90_PCT, c(seq(from=0,to=10),15,20,25,30,35,40,45,50,60,70,80), include.lowest=TRUE))$bin
 for(l in levels(fire.list$BA90_PCT_BIN)){
   fire.list[grep(l,as.character(fire.list$BA90_PCT_BIN),fixed=T),"q.pct"]=
@@ -210,50 +318,9 @@ ggplot(fire.list[fire.list$BA90_PCT>20,],aes(x=FIRE_YEAR,y=q.pct))+
   geom_smooth(method="lm")+
   theme_bw()
 
-#5: 
-#Trouble with plotting NA's as gray
-#df <- data.frame (V1=factor(c("A","B","A","B",NA)),x=c(1:5),y=c(1:5))
-#ggplot(df,aes(x=x,y=y,col=V1))+
-#  geom_point()
 
-agency_pct <-
-  ggplot(na.omit(d[,c("BA90_pct","sdc","agency")]),aes(x=BA90_pct,y=log(sdc),col=agency))+
-  geom_point()+
-  scale_color_manual(values=c("darkred","darkgreen","orange"))+
-  geom_smooth(method="lm")+
-  labs(title="All Fires", y= "ln(sdc)")+
-  theme_bw()
-agency_ha <-
-  ggplot(na.omit(d[,c("firesize_ha","sdc","agency")]),aes(x=log(firesize_ha),y=log(sdc),col=agency))+
-  geom_point()+
-  scale_color_manual(values=c("darkred","darkgreen","orange"))+
-  geom_smooth(method="lm")+
-  labs(title="All Fires", y= "ln(sdc)")+
-  theme_bw()
-class_pct <-
-  ggplot(na.omit(d[,c("BA90_pct","sdc","class")]),aes(x=BA90_pct,y=log(sdc),col=class))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  labs(title="All Fires", y= "ln(sdc)")+
-  theme_bw()
-class_ha <-
-  ggplot(na.omit(d[,c("firesize_ha","sdc","class")]),aes(x=log(firesize_ha),y=log(sdc),col=class))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  labs(title="All Fires", y= "ln(sdc)")+
-  theme_bw()
-
-summary(lm(log(sdc)~BA90_pct+class,data=d))
-summary(lm(log(sdc)~firesize_ha+class,data=d))
-summary(lm(log(sdc)~BA90_pct+agency,data=d))
-summary(lm(log(sdc)~firesize_ha+agency,data=d))
-
-png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig4_",Sys.Date(),".png"),width=10,height=10,units="in",res=200)
-grid.arrange(class_pct,class_ha,agency_pct,agency_ha,ncol=2)
-dev.off()
-
-####5. Identify and plot examples####
-#Run the chunk below for BA_range <- c(0,10), c(10,20), c(20,30), c(30-40), and c(45-55)
+####5a. Identify specific example fires####
+#Run the chunk below for BA_range <- c(0,10), c(10,20), c(20,30), c(30-40), and c(45-55). Only needed to run once; skip to 5b.
 BA_range <- c(45,55)
 BA_name <- paste("BA",BA_range[1],BA_range[2],"candidate",sep="_")
 for(r in 1:nrow(d)){ #Find fires with BA90 in a desired range
@@ -275,15 +342,19 @@ for(r in 1:nrow(d)){ #Identify those fires of similar size
 d[d$sdc %in% c( max(d[d[,BA_name]==TRUE,"sdc"]), min(d[d[,BA_name]==TRUE,"sdc"]) ),"Plot_candidates"]=TRUE
 
 #Plot examples from 10-55% HS
-d[which(d$Plot_candidates),"Plot_candidates"] <- c(5,2,3,1,7,8,6,4)
-d[which(is.na(d$Plot_candidates)),"Plot_candidates"] <- ""
-hs_patches=readOGR("../Large Files/GIS/BurnSev/Current/", layer="hs_patches") #CRS EPSG:3310, NAD83 CA Albers
+#d[which(d$Plot_candidates),"Plot_candidates"] <- c(5,2,3,1,7,8,6,4)
+#Above line only run once; candidates now determined so now skip to 5b
 
-####4.2.Plot Specific fires####
-#Gives a nice comparison of the East and Caribou fires.
+####5b.Identify  specific example fires####
+#Gives a nice comparison of 8 example fires.
+d[as.character(d$VB_ID) %in% 
+    c("2001HIGHWAY","1990RECER","1999HORTON2","2009GOOSE","1989RACK","2006BOULDER_CMPLX",
+      "2001STREAM","2004SIMS"),"Plot_candidates"] <-  c(5,2,3,1,7,8,6,4)
+d[which(is.na(d$Plot_candidates)),"Plot_candidates"] <- ""
+
+####5c.Plot  specific example fires####
+hs_patches=readOGR("../Large Files/GIS/BurnSev/Current/", layer="hs_patches") #CRS EPSG:3310, NAD83 CA Albers
 fires.to.plot.names=as.character(d[ order(d[,"Plot_candidates"])[470:477] , "VB_ID"])
-#fires.to.plot=fires_long[as.character(fires_long$name)%in%fires.to.plot.names,]
-#fires.to.plot$name=factor(fires.to.plot$name,labels=c("East","Caribou"))
 p.a=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[1],]),
                aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
@@ -294,23 +365,25 @@ p.a=ggplot()+
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[1],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.b=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[2],]),
                aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,10000) + ylim(0,8000) + coord_fixed()+
-  labs(title="2. Recer Fire (1990)",x=" ",y="meters") +
+  labs(title="2. Recer Fire (1990)",x=" ",y=" ") +
   annotate("text",x=0,y=6000,label=
              paste("sdc =",round(d[d$VB_ID==fires.to.plot.names[2],"sdc"],4),
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[2],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.c=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[3],]),
@@ -322,27 +395,29 @@ p.c=ggplot()+
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[3],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.d=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[4],]),
                aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,10000) + ylim(0,8000) + coord_fixed()+
-  labs(title="4. Goose Fire (2001)",x=" ",y="meters") +
+  labs(title="4. Goose Fire (2009)",x=" ",y=" ") +
   annotate("text",x=0,y=6000,label=
-             paste("sdc =",round(d[d$VB_ID==fires.to.plot.names[1],"sdc"],4),
-                   "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[1],"sdc"]),2) ),
+             paste("sdc =",round(d[d$VB_ID==fires.to.plot.names[4],"sdc"],4),
+                   "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[4],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.e=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[5],]),
-               aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
+               aes(x=long-min(long)+2000,y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,10000) + ylim(0,8000) + coord_fixed()+
   labs(title="5. Rack Fire (1989)",x=" ",y="meters") +
   annotate("text",x=0,y=6000,label=
@@ -350,75 +425,145 @@ p.e=ggplot()+
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[5],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.f=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[6],]),
                aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,10000) + ylim(0,8000) + coord_fixed()+
-  labs(title="6. Boulder Complex Fire (2006)",x=" ",y="meters") +
+  labs(title="6. Boulder Complex (2006)",x=" ",y=" ") +
   annotate("text",x=0,y=6000,label=
              paste("sdc =",round(d[d$VB_ID==fires.to.plot.names[6],"sdc"],4),
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[6],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.g=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[7],]),
                aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,10000) + ylim(0,8000) + coord_fixed()+
-  labs(title="7. Stream Fire (2001)",x=" ",y="meters") +
+  labs(title="7. Stream Fire (2001)",x="meters",y="meters") +
   annotate("text",x=0,y=6000,label=
              paste("sdc =",round(d[d$VB_ID==fires.to.plot.names[7],"sdc"],4),
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[7],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
 p.h=ggplot()+
   geom_polygon(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[8],]),
                aes(x=long-min(long),y=lat-min(lat),group=group),col='darkred',fill='darkred')+
   xlim(0,10000) + ylim(0,8000) + coord_fixed()+
-  labs(title="8. Sims Fire (2004)",x=" ",y="meters") +
+  labs(title="8. Sims Fire (2004)",x="meters",y=" ") +
   annotate("text",x=0,y=6000,label=
              paste("sdc =",round(d[d$VB_ID==fires.to.plot.names[8],"sdc"],4),
                    "\nln(sdc) = ",round(log(d[d$VB_ID==fires.to.plot.names[8],"sdc"]),2) ),
            hjust=0,vjust=0,size=3)+
   theme_bw()+
-  theme(axis.text=element_text(size=14),
-        axis.title=element_text(size=16),
-        plot.title=element_text(size=18, hjust=0.5))
+  theme(axis.text.x=element_text(size=12,angle = 45, hjust = 1),
+        axis.text.y=element_text(size=12,angle = 0),
+        axis.title=element_text(size=13),
+        plot.title=element_text(size=14, hjust=0.5))
 
-png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig5_",Sys.Date(),".png"),width=10,height=10,units="in",res=200)
+#png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig4_",Sys.Date(),".png"),width=6,height=10,units="in",res=200)
 grid.arrange(p.a,p.b,p.c,p.d,p.e,p.f,p.g,p.h,ncol=2)
-dev.off()
+#dev.off()
 
-#Ultimately better way to plot is below, using "draw_plot" from cowplot.
-ggdraw()+
-  draw_plot(p.a, x=0, y=.5, width=.5, height=.5) +
-  draw_plot(p.b, x=.5, y=.5, width=.5, height=.5) +
-  draw_plot(p.fits, x=0, y=0, width=1, height=.5) +
-  draw_plot_label(c("A", "B", "C", "meters"), c(0, 0.5, 0, 0.40), c(1, 1, 0.5, 0.55), 
-                  size = c(12, 12, 12, 16), fontface=c("bold","bold","bold","plain")) 
+####6: Plot SDC vs class, agency, pct_hs, and fire size#### 
+#Make sure you've run #5b first.
+#Trouble with plotting NA's as gray
+#df <- data.frame (V1=factor(c("A","B","A","B",NA)),x=c(1:5),y=c(1:5))
+#ggplot(df,aes(x=x,y=y,col=V1))+
+#  geom_point()
 
-#dev.copy2pdf(file=paste0("./Figures/Fig4_",Sys.Date(),".pdf"),width=8,height=8)
-
-
-#Redo Fig. 5
 class_pct <-
   ggplot(na.omit(d[,c("BA90_pct","sdc","class","Plot_candidates")]),aes(x=BA90_pct,y=log(sdc),col=class))+
   geom_point()+
-  geom_text(aes(label=Plot_candidates),hjust=1, vjust=1,size=6,col="black",fontface="bold")+
   geom_smooth(method="lm")+
-  labs(title="All Fires")+
-  theme_bw()
-png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig4_",Sys.Date(),".png"),width=10,height=10,units="in",res=200)
-grid.arrange(class_pct,class_ha,agency_pct,agency_ha,ncol=2)
+  geom_text(aes(label=Plot_candidates),hjust=1, vjust=1,size=6,col="black",fontface="bold")+
+  labs(y= "ln(sdc)",x=" ", title = "a")+
+  annotate("text", x=60, y=-3, label = paste("R^2 == ", 0.67), parse = TRUE) +
+  theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=13),
+        legend.position = 'none')
+class_ha <-
+  ggplot(na.omit(d[,c("firesize_ha","sdc","class")]),aes(x=log(firesize_ha),y=log(sdc),col=class))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  labs(y= " ", x=" ", title = "b")+
+  annotate("text", x=10, y=-3, label = paste("R^2 == ", 0.22), parse = TRUE) +
+  theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=13))
+agency_pct <-
+  ggplot(na.omit(d[,c("BA90_pct","sdc","agency")]),aes(x=BA90_pct,y=log(sdc),col=agency))+
+  geom_point()+
+  scale_color_manual(values=c("darkred","darkgreen","orange"),guide=FALSE)+
+  geom_smooth(method="lm")+
+  labs(y= "ln(sdc)", x="percent high-severity", title = "c")+
+  annotate("text", x=60, y=-3, label = paste("R^2 == ", 0.67), parse = TRUE) +
+  theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=13))
+agency_ha <-
+  ggplot(na.omit(d[,c("firesize_ha","sdc","agency")]),aes(x=log(firesize_ha),y=log(sdc),col=agency))+
+  geom_point()+
+  scale_color_manual(values=c("darkred","darkgreen","orange"))+
+  geom_smooth(method="lm")+
+  labs(y= " ", x= "ln(area [ha])", title = "d")+
+  annotate("text", x=10, y=-3, label = paste("R^2 == ", 0.21), parse = TRUE) +
+  theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=13))
+
+summary(lm(log(sdc)~BA90_pct+class,data=d))
+summary(lm(log(sdc)~firesize_ha+class,data=d))
+summary(lm(log(sdc)~BA90_pct+agency,data=d))
+#summary(lm(log(sdc)~BA90_pct+agency,data=within(d, agency <- relevel(agency, ref = 3) ) ) )
+summary(lm(log(sdc)~firesize_ha+agency,data=d))
+#summary(lm(log(sdc)~firesize_ha+agency,data=within(d, agency <- relevel(agency, ref = 3) ) ) )
+
+png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig2_",Sys.Date(),".png"),width=7.5,height=10,units="in",res=200)
+grid.arrange(class_pct,class_ha,agency_pct,agency_ha,ncol=2,widths=c(0.44,0.56))
 dev.off()
+
+
+
+####7: Forest loss by agency####
+#Calculate core patch area 
+d$P <- 1/(10^(d$sdc*120))
+d$CPA_120 <- d$BA90_ha * d$P
+
+d_CPA <-
+  d %>%
+  group_by(fire_year,agency) %>%
+  summarise(CPA_120 = sum(CPA_120)) %>%
+  group_by(agency)%>%
+  mutate(CPA_120_cumul = cumsum(CPA_120))
+d_CPA <- d_CPA[complete.cases(d_CPA),]
+  
+p_CPA <-
+  ggplot(d_CPA,aes(x=fire_year,y=CPA_120_cumul,col=agency))+
+  geom_line()+
+  scale_color_manual(values=c("darkred","darkgreen","orange"))+
+  labs(x = "fire year", y = "cumulative area >120 m in from patch edge (ha)")+
+  scale_x_continuous(minor_breaks = seq(1984, 2015, 1),breaks = seq(1985, 2015, 5))+
+  theme_bw()+
+  theme(panel.grid.minor = element_line(size=0.5),
+        panel.grid.major.x = element_line(color = "black"))
+
+png(file = paste0("./Manuscripts/MS2- Trends/Figures/Fig5_",Sys.Date(),".png"),width=7.5,height=4,units="in",res=200)
+p_CPA
+dev.off()
+  
