@@ -1,0 +1,1084 @@
+<html xmlns:sd="http://www.oracle.com/XSL/Transform/java/com.elsevier.awg.AuthorFollowUps" xmlns:url="http://www.oracle.com/XSL/Transform/java/java.net.URLEncoder" lang="en">
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script>
+								<!--
+								function showURL(sData){
+								var sHTML = "";
+
+var sDisplayData = "";
+
+var start = 0;
+
+var linkData = "";
+
+for (var i=0; i< sData.length ; i++) {
+									if (sData.charAt(i) == "[" && sData.charAt(i+1) == "[" && start == 0){
+									start = 1;
+
+i++;
+
+continue;
+
+}
+									if (start == 1){
+									if (sData.charAt(i) == "]" && sData.charAt(i+1) == "]"){
+										start = 0;
+
+i++;
+
+var sLinks = linkData.split("|");
+
+if (sLinks.length == 1){
+										sDisplayData += "<a href='"+linkData+"' target='_blank'>"+linkData+"</a>";
+
+}else{
+										sDisplayData += "<a href='"+sLinks[0]+"' target='_blank'>"+sLinks[1]+"</a>";
+
+}
+										linkData = "";
+
+}else{
+										linkData += sData.charAt(i);
+
+}
+									continue;
+
+}
+									sDisplayData += sData.charAt(i);
+
+}
+								if (start == 1)
+								{
+									sDisplayData += linkData;
+
+}
+								sHTML += sDisplayData;
+
+document.write(sHTML);
+
+}
+								-->
+								
+		</script>
+<style type="text/css">
+			body {
+			margin-top: 0;
+
+			margin-right: 0;
+
+			margin-bottom: 0;
+
+			margin-left: 0;
+
+			font-family: verdana;
+
+			font-size: 11px;
+
+			min-height: 100%;
+
+			height: 100%;
+
+			width: 100%;
+
+			}
+
+			html, body, form {
+			min-height: 100%;
+
+			height: 100%;
+
+			width: 100%;
+
+			}
+
+			html>body, html>body form {
+			height: auto;
+
+			width: 100%;
+
+			}
+
+			fieldset table, .details {
+			background: #F3F3F3;
+
+			}
+
+			fieldset table table {
+			border: none;
+
+			}
+
+			a:link,a:visited,a:hover {
+			font-size: 11px;
+
+			font-family: verdana;
+
+			color: #355880;
+
+			}
+
+			p, td, li {
+			font-size: 11px;
+
+			font-family: verdana;
+
+			color: #000000;
+
+			line-height: 150%;
+
+			}
+
+			p {
+			margin-top: 10px;
+
+			margin-right: 0;
+
+			margin-bottom: 10px;
+
+			margin-left: 101px;
+
+			width: 755px;
+
+			}
+			.ydetailsSummary {
+			margin: 1px 0 0 101px;
+
+			line-height:150%;
+
+			width: 755px;
+
+			}
+
+			.summarypara{
+			padding-top:5px;
+
+			padding-bottom:5px;
+
+			line-height:150%;
+
+			width:755px;
+
+			margin: 0 0 0 101px;
+
+			}
+
+			ul {
+			list-style-type: none;
+
+			margin-top: 3px;
+
+			margin-right: 15px;
+
+			margin-bottom: 0;
+
+			margin-left: 130px;
+
+			padding-top: 0;
+
+			padding-right: 5px;
+
+			padding-bottom: 0;
+
+			padding-left: 5px;
+
+			width: 600px
+			}
+
+			li {
+			background-image: url(http://authors.elsevier.com/img/bullet_oct.gif);
+
+			background-repeat: no-repeat;
+
+			background-position: 2px 3px;
+
+			padding-left: 14px;
+
+			}
+
+			h1, h2, legend {
+			font-family: arial;
+
+			margin: 0;
+
+			padding: 0;
+
+			text-transform: uppercase;
+
+			text-align: left;
+
+			}
+
+			h1 {
+			font-size: 20px;
+
+			font-weight: normal;
+
+			margin-top: 0;
+
+			margin-left: 101px;
+
+			margin-bottom: 0;
+
+			margin-right: 0;
+
+			padding: 0;
+
+			letter-spacing: 1px;
+
+			}
+
+			h2, legend {
+			font-size: 16px;
+
+			font-weight: bold;
+
+			margin: 15px 0 5px 101px;
+
+			}
+
+			h3 {
+			font-weight: bold;
+
+			font-size: 11px;
+
+			font-family: verdana;
+
+			margin: 10px 0 5px 101px;
+
+			}
+
+			fieldset {
+			border: none;
+
+			}
+
+			legend {
+			margin: 0 0 3px 94px;
+
+			color: #000000;
+
+			}
+
+			legend span {
+			color: #FF0000;
+
+			text-transform: none;
+
+			font-size: 12px;
+
+			font-family: verdana;
+
+			}
+
+			table {
+			margin-bottom: 10px;
+
+			}
+
+			.back {
+			text-align: right;
+
+			}
+
+			.button {
+			padding: 0;
+
+			margin: 0 0 0 50px;
+
+			width: 710px;
+
+			}
+
+			.details {
+			padding: 2px 0 2px 4px;
+
+			background: #F0F0F0;
+
+			}
+			.error {
+			border: 2px dashed #FF0000;
+
+			color: #FF0000;
+
+			margin: 10px 0 10px 101px;
+
+			padding: 7px;
+
+			width: 755px;
+
+			}
+
+			.indented {
+			margin: 2px 2px 2px 120px;
+
+			padding: 5px;
+
+			width: 600px;
+
+			border: 1px dotted #A1A2A3;
+
+			background: #F3F3F3;
+
+			}
+
+			.red {
+			color: #FF0000;
+
+			}
+
+			.right {
+			text-align: right;
+
+			}
+
+			.section {
+			margin: 0 0 15px 101px;
+
+			width: 755px;
+
+			}
+
+			.verdanaBlueBold11 {
+			font-weight: bold;
+
+			font-size: 11px;
+
+			font-family: verdana;
+
+			color: #336699;
+
+			}
+
+			.verdanaGrey11 {
+			font-weight: bold;
+
+			font-size: 11px;
+
+			font-family: verdana;
+
+			color: #666666;
+
+			}
+
+			#copyright {
+			background: #FFFFFF;
+
+			color: #000000;
+
+			padding-left: 5px;
+
+			margin-top: 1px;
+
+			}
+
+			#contact {
+			width: 755px;
+
+			text-align: right;
+
+			margin: 0;
+
+			padding: 0;
+
+			}
+
+			#footer {
+			bottom: 0;
+
+			overflow: hidden;
+
+			width: 755px;
+
+			margin-top: 10px;
+
+			margin-right: 0;
+
+			margin-bottom: 0px;
+
+			margin-left: 101px;
+
+			background: #FF9933;
+
+			}
+
+			ul#footerLinks {
+			margin: 0;
+
+			padding: 0;
+
+			}
+
+			#footerLinks li {
+			background-image: none;
+
+			display: inline;
+
+			list-style-type: none;
+
+			padding: 1px 5px 0 8px;
+
+			margin: 0;
+
+			}
+
+			#footerLinks a:link, #footerLinks a:visited {
+			color: #FFF;
+
+			}
+
+			#header {
+			margin: 0;
+
+			padding: 10px 0 10px 0;
+
+			background: #E7E7E7;
+
+			border-bottom: 3px double #CCC;
+
+			}
+		</style>
+<style media="print" type="text/css">
+			body {
+			margin-top: 0 !important;
+
+			margin-right: 0 !important;
+
+			margin-bottom: 0 !important;
+
+			margin-left: 0 !important;
+
+			font-family: verdana !important;
+
+			font-size: 11px !important;
+
+			min-height: 100% !important;
+
+			height: 100% !important;
+
+			width: 100% !important;
+
+			}
+
+			html, body, form {
+			min-height: 100% !important;
+
+			height: 100% !important;
+
+			width: 100% !important;
+
+			font-size: 11px !important;
+
+			}
+
+			html>body, html>body form {
+			min-height: 100% !important;
+
+			height: 100% !important;
+
+			width: 100% !important;
+
+			}
+
+			form {
+			position: auto !important;
+
+			top: auto !important;
+
+			left: auto !important;
+
+			font-family: verdana !important;
+
+			}
+
+			fieldset table, .details {
+			border: none !important;
+
+			background: none !important;
+
+			}
+
+			fieldset table table {
+			border: none !important;
+
+			background: none !important;
+
+			}
+
+			a:link,a:visited,a:hover {
+			font-size: 11px !important;
+
+			font-family: verdana !important;
+
+			color: #355880 !important;
+
+			}
+
+			p, td, li {
+			font-size: 11px !important;
+
+			font-family: verdana !important;
+
+			color: #000000 !important;
+
+			line-height: auto !important;
+
+			padding-left: 0px !important;
+
+			}
+
+			p, td {
+			font-size: 11px !important;
+
+			font-family: verdana !important;
+
+			color: #000000 !important;
+
+			padding-left: 0px !important;
+
+			}
+
+			p {
+			margin-top: 0px !important;
+
+			margin-right: 0 !important;
+
+			margin-bottom: 0px !important;
+
+			margin-left: 0px !important;
+
+			width: 100% !important;
+
+			padding-left: 0px !important;
+
+			}
+
+			.ydetailsSummary{
+			margin: 1px 0 0 101px;
+
+			line-height:150%;
+
+			margin-left: 101px;
+
+			width: 755px;
+
+			}
+
+			.summarypara{
+			padding-top:5px;
+
+			padding-bottom:5px;
+
+			line-height:150%;
+
+			width:755px;
+
+			margin: 0 0 0 101px;
+
+			}
+
+			ul {
+			list-style-image: none !important;
+
+			list-style-type: none !important;
+
+			margin-top: 3px !important;
+
+			margin-right: 15px !important;
+
+			margin-bottom: 0 !important;
+
+			margin-left: 130px !important;
+
+			padding-top: 0 !important;
+
+			padding-right: 5px !important;
+
+			padding-bottom: 0 !important;
+
+			padding-left: 5px !important;
+
+			width: 100% !important;
+
+			}
+
+			li {
+			background-image: url(http://authors.elsevier.com/img/bullet_oct.gif) !important;
+
+			list-style-image: url(http://authors.elsevier.com/img/bullet_oct.gif) !important;
+
+			background-repeat: no-repeat !important;
+
+			background-position: 2px 5px !important;
+
+			padding-left: 2px !important;
+
+			padding-right: 0px !important;
+
+			}
+
+			ul, li {
+			background-image: url(http://authors.elsevier.com/img/bullet_oct.gif) !important;
+
+			list-style-image: url(http://authors.elsevier.com/img/bullet_oct.gif) !important;
+
+			background-repeat: no-repeat !important;
+
+			background-position: 2px 5px !important;
+
+			padding-left: 2px !important;
+
+			padding-right: 0px !important;
+
+			}
+
+			li, ul {
+			background-image: url(http://authors.elsevier.com/img/bullet_oct.gif) !important;
+
+			list-style-image: url(http://authors.elsevier.com/img/bullet_oct.gif) !important;
+
+			background-repeat: no-repeat !important;
+
+			background-position: 2px 5px !important;
+
+			padding-left: 2px !important;
+
+			padding-right: 0px !important;
+
+			}
+
+			h1, h2, legend {
+			font-family: arial !important;
+
+			font-size: auto !important;
+
+			margin: 0 !important;
+
+			padding: 0 !important;
+
+			text-transform: uppercase !important;
+
+			text-align: left !important;
+
+			}
+
+			h1 {
+			font-family: arial !important;
+
+			font-size: 20px !important;
+
+			font-weight: normal !important;
+
+			margin-top: 10px !important;
+
+			margin-left: 101px !important;
+
+			margin-bottom: 0 !important;
+
+			margin-right: 0 !important;
+
+			padding: 0 !important;
+
+			letter-spacing: 1px !important;
+
+			}
+
+			h2, legend {
+			font-family: arial !important;
+
+			font-size: 16px !important;
+
+			font-weight: bold !important;
+
+			margin-top: 15px !important;
+
+			margin-bottom: 10px !important;
+
+			/*margin: 0px 0 0px 0px !important;*/
+			}
+
+			h3 {
+			font-weight: bold !important;
+
+			font-size: 11px !important;
+
+			font-family: verdana !important;
+
+			/*  margin: 0 0 0 0px !important;*/
+			padding: 0 !important;
+
+			}
+
+			fieldset {
+			border: none !important;
+
+			}
+
+			legend {
+			margin: 0 0 0px 0px !important;
+
+			color: #000000 !important;
+
+			border: none !important;
+
+			}
+
+			legend span {
+			color: #FF0000 !important;
+
+			text-transform: none !important;
+
+			font-size: 12px !important;
+
+			font-family: verdana !important;
+
+			margin: 0 0 0px 0px !important;
+
+			}
+
+			table {
+			margin: 10px !important;
+
+			margin-bottom: 10px !important;
+
+			}
+
+			.button {
+			padding: 0 !important;
+
+			margin: 0 0 0 0px !important;
+
+			width: 10% !important;
+
+			display: none !important;
+
+			}
+
+			.back {
+			display: none !important;
+
+			text-align: right !important;
+
+			}
+
+			.contact {
+			display: none !important;
+
+			}
+
+			.details {
+			padding: 2px 0 2px 4px !important;
+
+			background: #F0F0F0 !important;
+
+			text-align: auto !important;
+
+			}
+			.error {
+			border: 2px dashed #FF0000 !important;
+
+			background: #E7E7E7 !important;
+
+			margin-top: 10px !important;
+
+			margin-left: 0px !important
+			padding: 0px !important
+			width: 100% !important;
+
+			}
+
+			.indented {
+			margin: 2px 2px 2px 20px !important;
+
+			padding: 5px !important;
+
+			width: 600px; !important;
+
+			border: 1px dotted #A1A2A3 !important;
+
+			background: #F3F3F3 !important;
+
+			border: none !important;
+
+			}
+
+			.section {
+			margin: 1 1 0px 0px !important;
+
+			width: 100% !important;
+
+			padding: 0px !important;
+
+			}
+
+			.red {
+			color: #FF0000 !important;
+
+			}
+
+			.right {
+			text-align: right !important;
+
+			}
+
+			.verdanaBlueBold11 {
+			font-weight: bold !important;
+
+			font-size: 11px !important;
+
+			font-family: verdana !important;
+
+			color: #336699 !important;
+
+			}
+
+			.verdanaGrey11 {
+			font-weight: bold !important;
+
+			font-size: 11px !important;
+
+			font-family: verdana !important;
+
+			color: #666666 !important;
+
+			}
+
+
+
+			#contact {
+			background: #FFFFFF !important;
+
+			width: 100% !important;
+
+			text-align: right !important;
+
+			margin: 0 !important;
+
+			padding: 0 !important;
+
+			}
+
+			#footer {
+			position: auto !important;
+
+			bottom: 0;
+
+			overflow: hidden;
+
+			width:100%;
+
+			margin-top: 0px;
+
+			margin-right: 0;
+
+			margin-bottom: 0px;
+
+			margin-left: 0px;
+
+			background: #FF9933;
+
+			display: none !important;
+
+			}
+
+			ul#footerLinks {
+			position: auto !important;
+
+			margin: 0 !important;
+
+			padding: 0 !important;
+
+			}
+
+			#footerLinks li {
+			background-image: none !important;
+
+			display: inline !important;
+
+			list-style-type: none !important;
+
+			padding: 0px 0px 0 0px !important;
+
+			margin: 0 !important;
+
+			position: auto !important;
+
+			}
+
+			#header {
+			position: auto !important;
+
+			margin: 0 !important;
+
+			padding: 10px 0 10px 0 !important;
+
+			background: #E7E7E7 !important;
+
+			border-bottom: 3px double #CCC !important;
+
+			}
+		</style>
+<title>Rights & Access</title>
+</head>
+<body>
+<form name="agreement" method="post" action="agreement_error.html">
+<div id="header">
+<div id="contact">
+<script language="JavaScript">
+							showURL("[[http://www.elsevier.com/authorsrights|Authors' Rights]]");
+
+						</script>
+<br>
+<script language="JavaScript">
+						showURL("[[http://service.elsevier.com|Help]]");
+
+					</script>&nbsp;|&nbsp;<a href="javascript:window.print()">Print</a>
+</div>
+<h1>Rights & Access</h1>
+</div>
+<p align="center">
+<b>Elsevier B.V.</b>
+</p>
+<h2></h2>
+<table class="section details" cellpadding="0" cellspacing="0" border="0" width="755">
+<tr>
+<td class="verdanaBlueBold11" width="200">Article: </td><td class="verdanaGrey11" width="500">Changing spatial patterns of stand-replacing fire in California conifer forests</td>
+</tr>
+<tr>
+<td class="verdanaBlueBold11">Corresponding author:</td><td class="verdanaGrey11">Dr. Jens T. Stevens
+</td>
+</tr>
+<tr>
+<td class="verdanaBlueBold11">E-mail address:</td><td class="verdanaGrey11">stevensjt@berkeley.edu</td>
+</tr>
+<tr>
+<td class="verdanaBlueBold11">Journal:</td><td class="verdanaGrey11">Forest Ecology and Management</td>
+</tr>
+<tr>
+<td class="verdanaBlueBold11">Our reference</td><td class="verdanaGrey11">FORECO16177</td>
+</tr>
+<tr>
+<td class="verdanaBlueBold11">PII:</td><td class="verdanaGrey11">S0378-1127(17)31037-X</td>
+</tr>
+<tr>
+<td class="verdanaBlueBold11">DOI:</td><td class="verdanaGrey11">10.1016/j.foreco.2017.08.051
+</td>
+</tr>
+</table>
+<h2>Your Status</h2>
+<ul>
+<li>I am one author signing on behalf of all co-authors of the manuscript</li>
+<li>I am not a US Government employee but some of my co-authors are</li>
+<li>I am signing on behalf of the corresponding author.<br>
+<b>Name/Job title/Company:     </b>
+Jens Stevens, postdoctoral scholar, University of California Berkeley<br>
+<b>E-mail address:</b>
+stevensjt@berkeley.edu</li>
+</ul>
+<h2>Assignment of Copyright</h2>
+<div class="ydetailsSummary">I hereby assign to 
+Elsevier B.V.
+ the copyright in the manuscript identified above (where Crown Copyright is asserted, authors agree to grant an exclusive publishing and distribution license) and any tables, illustrations or other material submitted for publication as part of the manuscript (the "Article"). This assignment of rights means that I have granted to
+Elsevier B.V.
+, the exclusive right to publish and reproduce the Article, or any part of the Article, in print, electronic and all other media (whether now known or later developed), in any form, in all languages, throughout the world, for the full term of copyright, and the right to license others to do the same, effective when the Article is accepted for publication. This includes the right to enforce the rights granted hereunder against third parties.
+</div>
+<h2>Supplemental Materials</h2>
+<div class="ydetailsSummary">With respect to Supplemental Materials that I wish to make accessible through a link in the Article or on a site or through a service of 
+Elsevier B.V., 
+Elsevier B.V.
+ shall be entitled to publish, post, reformat, index, archive, make available and link to such Supplemental Materials on a non-exclusive basis in all forms and media (whether now known or later developed) and to permit others to do so. "Supplemental Materials" shall mean additional materials that are not an intrinsic part of the Article, including but not limited to experimental data, e-components, encodings and software, and enhanced graphical, illustrative, video and audio material.
+</div>
+<h2>Reversion of rights</h2>
+<div class="ydetailsSummary">Articles may sometimes be accepted for publication but later rejected in the publication process, even in some cases after public posting in "Articles in Press" form, in which case all rights will revert to the author (see <script language="JavaScript">
+							showURL(" [[https://www.elsevier.com/about/our-business/policies/article-withdrawal|https://www.elsevier.com/about/our-business/policies/article-withdrawal]]).");
+
+						</script>).</div>
+<h2>Revisions and Addenda</h2>
+<div class="ydetailsSummary">I understand that no revisions, additional terms or addenda to this Journal Publishing Agreement can be accepted without 
+Elsevier B.V.'s express written consent. I understand that this Journal Publishing Agreement supersedes any previous agreements I have entered into with 
+Elsevier B.V. in relation to the Article from the date hereof.</div>
+<h2>Author Rights for Scholarly Purposes</h2>
+<div class="ydetailsSummary">I understand that I retain or am hereby granted (without the need to obtain further permission) the Author Rights (see description below), and that no rights in patents, trademarks or other intellectual property rights are transferred to
+Elsevier B.V..<br>
+</div>
+<div class="summarypara">The Author Rights include&nbsp;the right to use the <a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English#prePrint">Preprint</a>, <a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English#acceptedAuthorsManuscript">Accepted Manuscript</a>&nbsp;and the&nbsp;<a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English#publishedJournalArticle">Published Journal Article</a>&nbsp; for &nbsp;<a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English#personalUse">Personal Use</a>, <a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English#internalInstitutionalUse">Internal Institutional Use</a>&nbsp; and for &nbsp;<a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English#scholarlySharing">Scholarly Sharing</a>.</div>
+<br>
+
+<div class="summarypara">In the case of the Accepted Manuscript and the Published Journal Article the Author Rights exclude Commercial Use (unless expressly agreed in writing by
+Elsevier B.V.), other than use by the author in a subsequent compilation of the author's works or to extend the Article to book length form or re-use by the author of portions or excerpts in other works (with full acknowledgment of the original publication of the Article).</div>
+<h2>Author Representations / Ethics and Disclosure / Sanctions</h2>
+<div class="ydetailsSummary">
+<script language="JavaScript">
+							showURL("I affirm the Author Representations noted below, and confirm that I have reviewed and complied with the relevant Instructions to Authors, Ethics in Publishing policy, Declarations of Interest disclosure and information for authors from countries affected by sanctions (Iran, Cuba, Sudan, Burma, Syria, or Crimea). Please note that some journals may require that all co-authors sign and submit Declarations of Interest disclosure forms. I am also aware of the publisher's policies with respect to retractions and withdrawal ([[https://www.elsevier.com/about/our-business/policies/article-withdrawal|https://www.elsevier.com/about/our-business/policies/article-withdrawal]]).");
+
+						</script>
+<br>
+<script language="JavaScript">
+							showURL("For further information see the publishing ethics page at [[https://www.elsevier.com/about/our-business/policies/publishing-ethics|https://www.elsevier.com/about/our-business/policies/publishing-ethics]] and the journal home page. For further information on sanctions, see [[https://www.elsevier.com/about/our-business/policies/trade-sanctions|https://www.elsevier.com/about/our-business/policies/trade-sanctions]]");
+
+						</script>
+</div>
+<h3>Author representations</h3>
+<ul>
+<li>The Article I have submitted to the journal for review is original, has been written by the stated authors and has not been previously published.</li>
+<li>The Article was not submitted for review to another journal while under review by this journal and will not be submitted to any other journal.</li>
+<li>The Article and the Supplemental Materials do not infringe any copyright, violate any other intellectual property, privacy or other rights of any person or entity, or contain any libellous or other unlawful matter.</li>
+<li>I have obtained written permission from copyright owners for any excerpts from copyrighted works that are included and have credited the sources in the Article or the Supplemental Materials.</li>
+<li>Except as expressly set out in this Journal Publishing Agreement, the Article is not subject to any prior rights or licenses and, if my or any of my co-authors' institution has a policy that might restrict my ability to grant the rights required by this Journal Publishing Agreement (taking into account the Author Rights permitted hereunder, including Internal Institutional Use), a written waiver of that policy has been obtained.</li>
+<li>If I and/or any of my co-authors reside in Iran, Cuba, Sudan, Burma, Syria, or Crimea, the Article has been prepared in a personal, academic or research capacity and not as an official representative or otherwise on behalf of the relevant government.</li>
+<li>
+<script language="JavaScript">
+								showURL("If I am using any personal details or images of patients, research subjects or other individuals, I have obtained all consents required by applicable law and complied with the publisher's policies relating to the use of such images or personal information. See [[https://www.elsevier.com/about/our-business/policies/patient-consent|https://www.elsevier.com/about/our-business/policies/patient-consent]] for further information.");
+							</script>
+</li>
+<li>Any software contained in the Supplemental Materials is free from viruses, contaminants or worms.</li>
+<li>If the Article or any of the Supplemental Materials were prepared jointly with other authors, I have informed the co-author(s) of the terms of this Journal Publishing Agreement and that I am signing on their behalf as their agent, and I am authorized to do so.</li>
+</ul>
+<div class="summarypara">
+<script language="JavaScript">
+									showURL("For information on the publisher's copyright and access policies, please see [[http://www.elsevier.com/copyright/|http://www.elsevier.com/copyright]].");
+
+								</script>
+<br>
+<a href="http://authors.elsevier.com/authorform/staticpage/definitions.do?lang=English">For more information about the definitions relating to this agreement click here.</a>
+</div>
+<br>
+<div>
+<table class="section details" cellpadding="0" cellspacing="1" border="0" width="100%">
+<tr>
+<td width="25"><input disabled="true" checked="true" id="agreement" value="checked" name="agreement" type="checkbox"></td><td><label for="agreement"><strong>I have read and agree to the terms of the Journal Publishing Agreement.</strong></label></td>
+</tr>
+</table>
+</div>
+<table class="section" cellpadding="0" cellspacing="0" border="0" width="755">
+<tr>
+<td align="left"><strong>6th September 2017</strong></td><td align="right">T-copyright-v21/2016</td>
+</tr>
+</table>
+<br>
+<div id="footer">
+<ul id="footerLinks">
+<li>
+<script language="JavaScript">
+							showURL("[[http://www.elsevier.com/legal/privacy-policy|Privacy Policy]]");
+						</script>
+</li>
+<li>
+<script language="JavaScript">
+							showURL("[[/authorform/staticpage/termsandconditions.do?lang=en|Terms & Conditions]]");
+						</script>
+</li>
+<li>
+<script language="JavaScript">
+							showURL("[[https://service.elsevier.com|Help]]");
+
+						</script>
+</li>
+</ul>
+<div id="copyright">Copyright (c)&nbsp;2017&nbsp;Elsevier Ltd. All rights reserved.<br>Cookies are set by this site. To decline them or learn more, visit our <script language="JavaScript">
+						showURL("[[/authorform/staticpage/cookiepolicy.do|Cookies]]");
+					</script> page.</div>
+</div>
+</form>
+</body>
+</html>
