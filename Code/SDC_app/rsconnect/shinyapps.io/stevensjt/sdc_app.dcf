@@ -2,7 +2,8 @@ name: sdc_app
 title:
 account: stevensjt
 server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
 appId: 203012
-bundleId: 1048468
+bundleId: 1119942
 url: https://stevensjt.shinyapps.io/sdc_app/
-when: 1509125398.10163
+when: 1512604843.98855

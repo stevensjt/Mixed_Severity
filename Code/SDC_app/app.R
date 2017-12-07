@@ -40,11 +40,11 @@ ui <- fluidPage(
   plotOutput("perims"),
   numericInput("buf_inc", "Internal buffer distance interval, in m", 10),
   actionButton(inputId = "go",label = "Run"), 
-  helpText("Only click -Run- once; may take some time for large files"),
+  helpText("Only click -Run- once; may take some time (5-10 minutes) for large fires. Setting larger buffer distance will cut down on time."),
   textOutput("sdc.name"), #Checkme, commented out for troubleshooting
   #tableOutput("sdc.table"),
-  plotOutput("sdc_hist"),
-  htmlOutput("checks")
+  plotOutput("sdc_hist")
+  #htmlOutput("checks")
   
   )
 
@@ -113,7 +113,11 @@ server <- function(input, output) {
                  spgeom=hs_fire, 
                  byid = FALSE, id = NULL, quadsegs = 5, 
                  capStyle = "ROUND", joinStyle = "ROUND", mitreLimit = 1,
-                 mc.cores = 1) #Should be 16 cores for web version, 4 for personal computer.
+                 mc.cores = 1) 
+      #Setting mc.cores is key
+      #Should on the server there are 16 cores available, 4 for personal computer.
+      #This is why the app takes so long.
+      #
       #Could mess with mc.preschedule = TRUE
       
       #Post-processing of long data frame:
@@ -167,7 +171,7 @@ server <- function(input, output) {
   })
   
   d <- eventReactive(input$go, {
-    d<-read.csv(text = getURL("https://raw.githubusercontent.com/stevensjt/Mixed_Severity/master/Data/Derived/all_fires_ForAnalysis_weather.csv"))
+    d<-read.csv(text = getURL("https://raw.githubusercontent.com/stevensjt/Mixed_Severity/master/Data/all_fires_ForAnalysis_weather.csv"))
   })
   
   output$sdc.name <- renderText({
