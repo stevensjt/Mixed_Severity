@@ -3,6 +3,8 @@
 library(rgdal) #readOGR
 library(cowplot)
 library(tidyverse)
+library(rgeos) #for gBuffer in section 5; v 0.3-26
+library(raster) #for extent() in section 5; v 2.6-7
 source("./Code/Functions.R")
 
 ####1a. Load data for analysis####
@@ -178,3 +180,70 @@ ggdraw()+
                   size = c(12, 12)) 
 
 #dev.copy2pdf(file=paste0("./Figures/FigS1_",Sys.Date(),".pdf"),width=8,height=8)
+
+####5. Example for post-fire GTR####
+#Install ggpolypath to deal with issue of holes:
+#https://github.com/tidyverse/ggplot2/issues/752
+#https://cran.r-project.org/web/packages/ggpolypath/index.html
+library(ggpolypath)
+
+##START HERE; swap out Caribou fire for King fire
+fires.to.plot.names=c("2015ROUGH","2008CARIBOU")
+fires.to.plot=fires_long[as.character(fires_long$name)%in%fires.to.plot.names,]
+fires.to.plot$name=factor(fires.to.plot$name,labels=c("Caribou", "Rough"))
+
+p.a_0 <- fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[1],])
+p.a_120 <- gBuffer(
+  createSPComment(fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[1],])), 
+  #createSPComment was done in the analysis used to create the long dataset (from Collins et al), 
+  #but needs to be re-done here for plotting a gBuffered layer
+  width = -120)
+
+p.a=ggplot()+
+  geom_polypath(data=p.a_0,
+               aes(x=(long-min(extent(p.a_0)@xmin))/1000,
+                   y=(lat-min(extent(p.a_0)@ymin))/1000,group=group),
+               col='darkred',fill='darkred')+
+  geom_polypath(data=p.a_120,
+                aes(x=(long-min(extent(p.a_0)@xmin))/1000,
+                        y=(lat-min(extent(p.a_0)@ymin))/1000,group=group),
+                    col='aquamarine',fill='aquamarine')+
+  xlim(0,50) + ylim(0,30)+ 
+  coord_fixed()+
+  labs(title="Rough Fire (2015)",x=" ",y="km") +
+  theme_bw()+
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=16),
+        plot.title=element_text(size=18, hjust=0.5))
+
+p.b=ggplot()+
+  geom_polypath(data=fill_holes(hs_patches[hs_patches$VB_ID==fires.to.plot.names[2],]),
+               aes(x=(long-min(long))/1000,y=(lat-min(lat))/1000,group=group),fill='darkblue')+
+  xlim(0,50) + ylim(0,30)+ coord_fixed()+
+  labs(title="Caribou Fire (2008)",x=" ", y=element_blank()) +
+  theme_bw()+
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=16),
+        plot.title=element_text(size=18, hjust=0.5))
+
+p.fits=ggplot(data=fires.to.plot,aes(x=width,y=prop.hs))+ 
+  geom_point(aes(col=name))+
+  geom_point(data = fires.to.plot[fires.to.plot$width == 120,], aes(x=width, y = prop.hs),
+             col = "aquamarine", size = 5)+
+  scale_color_manual(values=c("darkred","darkblue"),labels=c("Rough Fire","Caribou Fire")) +
+  geom_path(aes(x=width,y=1/(10^(sdc*width)),group=name,col=name))+
+  annotate("text", x = c(125,245), y = c(0.25,0.35), label = rev(unique(fires.to.plot$sdc.name)),size=3) +
+  labs(y="proportion \n stand-replacing",x="Patch interior buffer distance (m)",title=" ") +
+  theme_bw()+
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=16),
+        legend.position = c(0.9,0.5),legend.justification = c(1, 0.5), legend.title = element_blank())
+
+ggdraw()+
+  draw_plot(p.a, x=0, y=.5, width=.5, height=.5) +
+  draw_plot(p.b, x=.5, y=.5, width=.5, height=.5) +
+  draw_plot(p.fits, x=0, y=0, width=1, height=.5) +
+  draw_plot_label(c("A", "B", "C", "km"), c(0, 0.5, 0, 0.40), c(1, 1, 0.5, 0.55), 
+                  size = c(12, 12, 12, 16), fontface=c("bold","bold","bold","plain")) 
+
+dev.copy2pdf(file=paste0("./Figures/Fig4_",Sys.Date(),".pdf"),width=8,height=8)
