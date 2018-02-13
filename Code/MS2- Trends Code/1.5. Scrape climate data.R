@@ -6,7 +6,6 @@ library(tidyverse) #for write_csv
 library(rgeos)# For gCentroid
 library(stringr) #for str_sub
 library(ncdf4) #for processing functions to handle .nc files
-source("./Code/Functions.R")
 
 ####1. Data management####
 #Read in  data
